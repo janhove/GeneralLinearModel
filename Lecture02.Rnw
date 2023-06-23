@@ -99,7 +99,7 @@ question we're concerned with, a {\bf scatterplot} is a reasonable choice.
 both to learn more about your data and to communicate your findings
 in talks and papers.
 This script will feature some basic examples, but for a better introduction,
-take a look at the following resources:
+have a look at the following resources:
 \begin{itemize}
   \item {\it Data visualization: A practical introduction} by Kieran Healy.
   Available for free at \url{https://socviz.co/}.
@@ -180,7 +180,7 @@ the link between \textsc{aoa} and \textsc{gjt} in the `communality' term:
 \]
 
 Specifically, we will model this communality in terms of a straight line that is
-a function of \textsc{aoa}. Straight lines are parametrised in terms of 
+a function of \textsc{aoa}. Straight lines are parametrised by
 an intercept (we'll write $\beta_0$) and a slope ($\beta_1$):
 \[
   f(x) = \beta_0 + \beta_1x.
@@ -275,9 +275,9 @@ contour(x = unique(parameter_grid$beta0),
 @
 
 We could also derive these estimates mathematically. Conceptually,
-the maths are fairly easy and old hat (pretty much same as in the proof in Lecture 1,
-but in two dimensions rather than just one),
-but they require some familiarity with first-year university mathematics.
+the maths are fairly easy,
+but they require some familiarity with first-year university mathematics
+to spell out precisely.
 So let's skip straight to computing the \textsc{ols} estimates in R:
 <<>>=
 aoa.lm <- lm(GJT ~ AOA, data = d)
@@ -309,7 +309,7 @@ ggplot(data = d,
 Our estimates for $\beta_0, \beta_1$ are based on a sample and are hence
 inherently uncertain. Again, we can estimate the degree of this uncertainty
 if we are willing to make some assumptions about the residuals. As in Lecture 1,
-we need to assume that the residuals are i.i.d. 
+we assume that the residuals are i.i.d. 
 We already covered the `independence' part of this assumption.
 The `identical' bit (i.e., the homoskedasticity assumption) can be illustrated
 by taking a look at what some crass violations of it look like:
@@ -318,7 +318,7 @@ distribution of the residuals, more specifically the variance of this distributi
 If we're willing to make the i.i.d.\ assumption, we can again
 obtain uncertainty measures by means of bootstrapping or by assuming normality.
 
-<<fig.width = 6, fig.height = 1.4, echo = FALSE, fig.cap = "In all scatterplots, the spread of the data varies considerably according to the $x$ or $\\widehat{y}$ values.\\label{fig:heteroskedasticity}", message = FALSE, out.width = ".9\\textwidth">>=
+<<fig.width = 6, fig.height = 1.4, echo = FALSE, fig.cap = "In all scatterplots, the spread of the data varies considerably with the $x$ values.\\label{fig:heteroskedasticity}", message = FALSE, out.width = ".9\\textwidth">>=
 x <- runif(100, 0, 100)
 y_hat <- 0.3*x
 error1 <- rnorm(n = 100, sd = 0.2 * x)
@@ -352,7 +352,7 @@ gridExtra::grid.arrange(p1, p2, p3, ncol = 3)
 The logic is identical to that of Lecture 1.
 The only difference is that we now estimate two parameters.
 So rather than writing the bootstrapped estimates in a vector,
-we write them as rows in a two-column matrix:
+we record them in the rows of a two-column matrix:
 <<cache = TRUE>>=
 d$Prediction <- predict(aoa.lm)
 d$Residual <- resid(aoa.lm)
@@ -424,7 +424,7 @@ and all were sampled with the same probability from the empirical residual
 distribution.\footnote{Alternatives that do not assume homoskedasticity
 are easy to imagine. We could, for instance, have specified that we only resample
 the residuals for participants with \textsc{aoa} values over 40 from
-participants with \textsc{aoa} values over 40, and similary for participants
+participants with \textsc{aoa} values over 40, and similarly for participants
 with lower \textsc{aoa} values. This would correspond to the assumption
 that the residuals for participants with high vs.\ low \textsc{aoa} values
 are sampled from separate distributions. The code to run this bootstrap variation
@@ -524,8 +524,8 @@ but for all 20,000 runs. We store the results into a 20,000-by-67 matrix:
 # Step 2
 bs_y_hat <- matrix(nrow = n_bootstrap,
                    ncol = length(new_aoa))
-for (j in 1:n_bootstrap) {
-  bs_y_hat[j, ] <- bs_b[j, 1] + bs_b[j, 2]*new_aoa
+for (i in 1:n_bootstrap) {
+  bs_y_hat[i, ] <- bs_b[i, 1] + bs_b[i, 2]*new_aoa
 }
 @
 Each row of this matrix contains the location of a different bootstrapped
@@ -540,7 +540,7 @@ hi_95 <- apply(bs_y_hat, 2, quantile, probs = 0.975)
 @
 Finally, we combine the predictor values and these percentile values into a tibble and plot them.\footnote{Tibbles are the counterpart of standard data frames when using the tidyverse package. But you can use \texttt{data.frame()} instead of \texttt{tibble()} if you prefer.}
 See Figure \ref{fig:bs_confidenceband}.
-<<out.width = "0.6\\textwidth", fig.width = 5, fig.height = 3, fig.cap = "Scatterplot with a 95\\% confidence band for the regression line.\\label{fig:bs_confidenceband}">>=
+<<out.width = "0.6\\textwidth", fig.width = 5, fig.height = 3, fig.cap = "Scatterplot with a bootstrap-based 95\\% confidence band for the regression line.\\label{fig:bs_confidenceband}">>=
 # Step 4
 confidence_band_tbl <- tibble(new_aoa, lo_95, hi_95)
 
@@ -584,7 +584,6 @@ discernible from the one obtained previously:
 # not shown
 conf_band_t <- as.tibble(conf_band_t)
 conf_band_t$AOA <- new_aoa
-conf_band_t
 ggplot(data = conf_band_t,
        aes(x = AOA)) +
   geom_ribbon(aes(ymin = lwr,
@@ -609,7 +608,7 @@ ggplot(data = d,
 @
 
 \section{Interpreting regression lines}
-Equation \ref{eq:simple_regression_normal} is useful for getting a conceptual
+Equation \vref{eq:simple_regression_normal} is useful for getting a conceptual
 grasp of the regression line. According to this equation, we assume that
 the residuals are drawn i.i.d.\ from a normal distribution with mean 0
 and variance $\sigma_{\varepsilon}^2$.
@@ -623,7 +622,7 @@ Figure \ref{fig:conditionalmean} illustrates this concept graphically.
 The cross-section of the 95\% confidence band at a given $x$ value
 is the 95\% confidence interval of the corresponding conditional mean.
 
-<<fig.width = 4, fig.height = 3, echo = FALSE, fig.cap = "If we assume that the residuals are i.i.d., then the regression line connects the conditional means for distribution of $y$ at different $x$-values. In this illustration, the residuals are all assumed to be normally distributed, but this is not a necessary assumption for making sense of the regression line. If the residuals aren't normally distributed, however, it's possible that the conditional means don't capture what's interesting about how $x$ and $y$ relate to each other.\\label{fig:conditionalmean}", out.width = ".8\\textwidth">>=
+<<fig.width = 4, fig.height = 3, echo = FALSE, fig.cap = "If we assume that the residuals are i.i.d., then the regression line connects the estimated conditional means for the distribution of $y$ at different $x$-values. In this illustration, the residuals are all assumed to be normally distributed, but this is not a necessary assumption for making sense of the regression line. If the residuals aren't normally distributed, however, it's possible that the conditional means don't capture what's interesting about how $x$ and $y$ relate to each other.\\label{fig:conditionalmean}", out.width = ".8\\textwidth">>=
 set.seed(1)
 x <- runif(200)
 dat <- data.frame(x = x,
@@ -793,7 +792,7 @@ for participants with a predictor value of 0. However, zero
 lies outside the range of \textsc{aoa} values in our sample.
 A common trick to render the estimated intercept more informative about the data
 is to {\bf centre} the predictor at some sensible value, usually the mean
-or the median. Centring just mean subtracting this sensible value
+or the median. Centring just means subtracting this sensible value
 from all the predictor values before fitting the model:
 <<>>=
 # centre AOA
@@ -814,7 +813,7 @@ then we've already seen that this yields the sample mean.
 
 Note that in order to compute the conditional mean for an \textsc{aoa} 
 value of 35, we have to subtract the \textsc{aoa} mean from this predictor
-value, too:
+value, too, when we centred the predictor for our model:
 <<>>=
 predict(aoa.lm, newdata = tibble(c.AOA = 35 - mean(d$AOA)))
 @
@@ -863,7 +862,7 @@ As always, plotting the data helps you and your readership from flying blind.
 
 \section*{Exercises}
 \begin{enumerate}
-  \item (Paper and pencil.) Let's fit another model on DeKeyser et al.'s data:
+  \item (Paper and pencil.) Let's fit another model to DeKeyser et al.'s data:
 <<>>=
 gjt.lm <- lm(AOA ~ GJT, data = d)
 summary(gjt.lm)$coefficients
@@ -891,7 +890,8 @@ Now try to answer the following questions.
   \item How is their performance on an English proficiency test (\texttt{English.Overall})
   associated with \texttt{CorrectWritten}?
   
-  \item How does their performance on the Swedish translation tasks vary with \texttt{Age}?
+  \item How does their performance on the Swedish translation tasks vary with \texttt{Age}
+  in both modalities?
 \end{enumerate}
   
 \end{enumerate}
