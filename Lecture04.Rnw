@@ -1,0 +1,466 @@
+\documentclass{article}
+\usepackage[layout = a4paper]{geometry}
+
+\usepackage{parskip}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+\usepackage[sc]{mathpazo}
+\newcommand{\pr}{\,\textrm{pr}}
+\newcommand{\df}{\,\textrm{d}}
+\newcommand{\glm}{\textsc{glm}}
+
+% Abbildungen und Tabellen
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{booktabs}
+\usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+
+% Referenzen
+\usepackage[sort]{natbib}
+
+% Boxes
+\usepackage{framed}
+
+% Hyperlinks
+\usepackage{hyperref}
+\usepackage{varioref}
+
+\title{GLM -- Lecture 4\\Interactions}
+\author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
+
+\date{Ghent, 12--14 July 2023}
+
+% KNITR options -----------------------------------
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
+
+# set global chunk options
+opts_chunk$set(fig.path = 'figs/',
+               fig.align = 'center',
+               fig.show = 'hold',
+               fig.pos = "tp",
+               tidy = FALSE,
+               prompt = TRUE,
+               comment = '',
+               highlight = TRUE,
+               dev = 'cairo_pdf',
+               cache = FALSE,
+               fig.width = 5,
+               fig.height = 5,
+               message = FALSE,
+               warning = FALSE,
+               out.width = '.4\\textwidth')
+opts_knit$set(global.par = TRUE)
+
+options(formatR.arrow = TRUE,
+        width = 60, 
+        show.signif.stars = FALSE, 
+        tibble.print_max = 7,
+        tibble.print_min = 7,
+        digits = 5)
+
+set.seed(2023)
+@
+
+<<echo = FALSE>>=
+par(las = 1,
+    bty = "l",
+    mar = c(3,3,2,1),
+    mgp = c(2,.7, 0),
+    tck = -.01)
+@
+
+<<echo = FALSE>>=
+op <- par()
+@
+
+\begin{document}
+
+\maketitle
+
+Often, researchers aren't so much interested in how one predictor variable
+relates to some outcome. Rather, they're interested in how the relationship
+between one predictor and the outcome differs depending on another predictor.
+That is, they're interested in the interaction between two predictors.
+
+Consider Figure \ref{fig:interactions}, which shows four examples of what
+the joint effect of reading experience and word frequency on reading speed
+could look like. Note that in three out of four cases, the lines are not
+parallel to each other; in these cases, the effects of reading experience
+and word frequency on reading speed interact. In one case, the lines do run
+in parallel, and the effects of reading experience and word frequency on
+reading speed do not interact; that is, they are additive.
+
+<<echo = FALSE, out.width = '.8\\textwidth', fig.width = 4.3, fig.height = 4.1, fig.cap = "If the effects of reading experience and word frequency on reading speed interact, then the effect of reading experience on reading speed differs for different levels of word frequency. Or, equivalently, the effect of word frequency on reading speed differs for different levels of reading experience. This is reflected in the non-parallel lines. (The units on the $y$-axis in this example are arbitrary.)\\label{fig:interactions}">>=
+par(mfrow = c(2, 2),
+    mar = c(5.1, 4.1, 4.1, 2.1),
+    oma = c(0, 0, 0, 0),
+    cex = 0.6, cex.main = 1)
+
+plot(1, 1, type ="n", xaxt = "n",
+     xlim = c(0.4, 1.6),
+     ylim = c(0, 10),
+     xlab = "Reading experience", ylab = "Reading speed",
+     main = "no interaction\n(parallel lines)")
+axis(1, at = c(0.5, 1.5), labels = c("little", "much"))
+points(c(0.5, 1.5), c(3, 4.5), type = "b", pch = 16, lty = 2)
+points(c(0.5, 1.5), c(5, 6.5), type = "b", pch = 5, lty = 1)
+legend("topleft",
+       pch = c(5, 16),
+       lty = c(1, 2),
+       legend = c("high frequency", "low frequency"),
+       bty = "n")
+
+plot(1, 1, type ="n", xaxt = "n",
+     xlim = c(0.4, 1.6),
+     ylim = c(0, 10),
+     xlab = "Reading experience", ylab = "Reading speed",
+     main = "Interaction: stronger effect of experience\nfor frequent words")
+axis(1, at = c(0.5, 1.5), labels = c("little", "much"))
+points(c(0.5, 1.5), c(3, 4.5), type = "b", pch = 16, lty = 2)
+points(c(0.5, 1.5), c(5, 9), type = "b", pch = 5, lty = 1)
+
+plot(1, 1, type ="n", xaxt = "n",
+     xlim = c(0.4, 1.6),
+     ylim = c(0, 10),
+     xlab = "Reading experience", ylab = "Reading speed",
+     main = "Interaction: weaker effect of experience\nfor frequent words")
+axis(1, at = c(0.5, 1.5), labels = c("little", "much"))
+points(c(0.5, 1.5), c(3, 6.5), type = "b", pch = 16, lty = 2)
+points(c(0.5, 1.5), c(5, 6.5), type = "b", pch = 5, lty = 1)
+
+plot(1, 1, type ="n", xaxt = "n",
+     xlim = c(0.4, 1.6),
+     ylim = c(0, 10),
+     xlab = "Reading experience", ylab = "Reading speed",
+     main = "Cross-over interaction")
+axis(1, at = c(0.5, 1.5), labels = c("little", "much"))
+points(c(0.5, 1.5), c(6, 3), type = "b", pch = 16, lty = 2)
+points(c(0.5, 1.5), c(2.5, 5.5), type = "b", pch = 5, lty = 1)
+par(mfrow = c(1, 1))
+@
+
+\section{Interactions between two binary predictors}
+In \citet{Berthele2011b}, future teachers were asked to rate the 
+academic potential of a German-speaking boy based on a short recording
+in which he spoke French. About half of the future teachers were told
+that the boy's name was Luca (a typical Swiss name); the rest were told
+that the boy's name was Dragan (a name suggesting a Balkan migration background).
+Moreover, for about half of the participants, the recording contained
+code-switches from German; for about half, it didn't.
+\citet{Berthele2011b} wanted to find out how the purported name and the presence
+or absence of code-switches affect the teacher trainees' judgements
+of the boy's academic potential.
+
+\subsection{Data visualisation}
+Let's read in the data and plot them.
+
+<<out.width = '.5\\textwidth', fig.width = 1.4*2.5, fig.height = 1.4*2.2, fig.cap = "A first attempt at plotting the data. The patterns in the data aren't so clear because the data are too coarse for boxplots.\\label{fig:berthelebp1}">>=
+library(tidyverse)
+library(here)
+
+d <- read_csv(here("data", "berthele2012.csv"))
+
+ggplot(d,
+       aes(x = Name,
+           y = Potential)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_point(shape = 1,
+             position = position_jitter(width = 0.2, height = 0)) +
+  facet_grid(rows = vars(CS))
+@
+
+While boxplots are a reasonable first choice,
+Figure \ref{fig:berthelebp1} suggests that these data may be too coarse to 
+plot in this way. Alternatively, we could compute the mean potential rating
+for each combination of predictor variables and plot these means. But then
+we wouldn't know how the data underlying these means are distributed;
+Figure \ref{fig:bertehlebp2}.
+
+<<fig.width = 1.2*3, fig.height = 1.2*1.8, fig.cap = "The trends in the data are clearer here, but we can't glean the distribution of the data from this plot.\\label{fig:berthelebp2}", out.width = ".5\\textwidth">>=
+summary_berthele <- d |> 
+  group_by(Name, CS) |> 
+  summarise(n = n(),
+            MeanRating = mean(Potential),
+            StdRating = sd(Potential),
+            .groups = "drop")
+summary_berthele
+
+ggplot(summary_berthele,
+       aes(x = Name,
+           y = MeanRating,
+           linetype = CS, 
+           group = CS)) + 
+  geom_point() +
+  geom_line() +
+  ylab("Mean potential rating")
+@
+
+Luckily, we can have the best of both worlds. With the following commands,
+we plot the raw data as in Figure \ref{fig:berthelebp1} and then add
+the mean trends to them; Figure \ref{fig:berthelebp3}.
+
+<<fig.width = 1.8*2.5, fig.height = 1*2.2, fig.cap = "The best of both worlds.\\label{fig:berthelebp3}", out.width=".65\\textwidth">>=
+ggplot(d,
+       aes(x = Name,
+           y = Potential)) +
+  geom_point(shape = 1, colour = "grey50",
+             position = position_jitter(width = 0.2, height = 0)) +
+  geom_point(shape = 8, size = 3, colour = "blue",
+             data = summary_berthele,     # Data from different dataframe
+             aes(x = Name, y = MeanRating)) +
+  geom_line(colour = "blue",
+            data = summary_berthele,      # Data from different dataframe
+            aes(x = Name, y = MeanRating, group = CS)) +
+  facet_grid(cols = vars(CS))
+@
+
+\begin{framed}
+\noindent \textbf{Try out several plots.} 
+For group comparisons, boxplots are often a good choice, but it's often
+possible to improve on them. Don't hesitate to try out alternative plots.
+
+Incidentally, it can take some time to find a good way to visualise your
+data. For the last graph, I had to tinker with the colour of the data points
+as we as with the colour, shape and size of the means. But ultimately, all of
+this is time well spent.
+\end{framed}
+
+\subsection{Model}
+We now turn our attention to the matter of modelling these data
+in the general linear model. Note that the graphs suggest that the purported
+name and the presence or absence of code-switches interact: If code-switches
+are present, `Dragan's' academic potential is rated worse than `Luca's',
+but if they are absent, the order is flipped. We want our model to capture
+this interplay between the two predictors. To that end, we will need 
+four $\beta$ parameter.
+\begin{itemize}
+ \item $\beta_0$, the intercept, captures the baseline of the ratings.
+ \item $\beta_1$ captures the difference between the cells depending on the purported name (Dragan vs.\ Luca).
+ \item $\beta_2$ captures the difference between the cells depending on the presence or absence of code-switches.
+ \item $\beta_3$ adjusts $\beta_1$ and $\beta_2$: How much larger or smaller is the difference between Dragan and Luca if there are code-switches compared to when there are no code-switches? Or, equivalently, how much larger or smaller is the difference between the presence and absence of code-switches depending on whether the purported name is Dragan or Luca?
+\end{itemize}
+
+The model equation is as follows:
+\[
+  y_i = \beta_0 + \beta_1 \cdot x_{1,i} + \beta_2 \cdot x_{2,i} + \beta_3 \cdot (x_{1,i} \cdot x_{2,i}) + \varepsilon_i.
+\]
+\begin{itemize}
+ \item $x_{1,i}$ indicates whether the $i$-th participant was told that the boy's name was Dragan (1) or Luca (0).
+ \item $x_{2,i}$ indicates whether the $i$-th participant rated a recording with (1) or without (0) code-switches. 
+ \item Consequently, $\beta_0$ represents the average rating by participants who've purportedly heard Luca (0) talk without code-switches (0).
+\end{itemize}
+
+The term $(x_{1,i} \cdot x_{2,i})$ may have surprised you, but it does the job:
+The interaction term is a new variable that is the pointwise product of the two
+predictor variables. For the four cells in the present design, this new variable
+takes on two values:
+\begin{itemize}
+ \item Luca (0) without Codeswitches (0): $x_{1,i} \cdot x_{2,i} = 0 \cdot 0 = 0$.
+ \item Luca (0) with Codeswitches (1): $x_{1,i} \cdot x_{2,i} = 0 \cdot 1 = 0$.
+ \item Dragan (1) without Codeswitches (0): $x_{1,i} \cdot x_{2,i} = 1 \cdot 0 = 0$.
+ \item Dragan (1) with Codeswitches (1): $x_{1,i} \cdot x_{2,i} = 1 \cdot 1 = 1$.
+\end{itemize}
+
+Let's compute the dummy variables and their product:
+<<>>=
+d <- d |> 
+  mutate(
+    Dragan = ifelse(Name == "Dragan", 1, 0),
+    WithCS = ifelse(CS == "with", 1, 0),
+    DraganWithCS = Dragan * WithCS
+  )
+@
+
+Now fit a linear model with all these dummy variables:
+<<>>=
+potential.lm <- lm(Potential ~ Dragan + WithCS + DraganWithCS, data = d)
+potential.lm
+@
+
+We can use the estimated coefficients to reconstruct the cell means
+we computed earlier when drawing the graphs. In the following sums,
+rounding errors were correct. The brackets are superfluous but make the 
+structure clearer:
+\begin{itemize}
+ \item Not Dragan (so Luca), without code-switches:
+  \[
+    \widehat{y} = 3.09 + (0.53 \cdot 0) + (0.27 \cdot 0) + (-0.93 \cdot 0) = 3.09.
+  \]
+
+ \item Dragan, without code-switches:
+  \[
+    \widehat{y} = 3.09 + (0.53 \cdot 1) + (0.27 \cdot 0) + (-0.93 \cdot 0) = 3.63.
+  \]
+
+ \item Not Dragan (so Luca), with code-switches:
+  \[
+    \widehat{y} = 3.09 + (0.53 \cdot 0) + (0.27 \cdot 1) + (-0.93 \cdot 0) = 3.36.
+  \]
+
+ \item Dragan, with code-switches:
+  \[
+    \widehat{y} = 3.09 + (0.53 \cdot 1) + (0.27 \cdot 1) + (-0.93 \cdot 1) = 2.96.
+  \]
+\end{itemize}
+
+Note, incidentally, that we are using {\bf treatment coding} here.
+As a result, the estimate
+of $0.53$ for \texttt{Dragan} \emph{only} pertains to the recording without
+code-switches (the level coded as 0). In order to obtain difference between the estimated conditional
+means between Luca and Dragan when the recording contais code-switches, you
+need to include the interaction terms: $0.53 - 0.93 = -0.40$.
+Similarly, the estimate of $0.27$ for \texttt{WithCS} only pertains to ratings
+of `Luca' (the level coded as 0). In order to obtain the difference between
+the estimated conditional means between recordings with vs.\ without code-switches
+for Dragan, you again need to include the interaction term: $0.27 - 0.93 = -0.66$.
+
+While we could recode the predictors in such a way that, for instance,
+$\beta_1$ expresses the average difference in the ratings for Luca and Dragan
+across both levels of code-switches and $\beta_2$ expresses the average difference in
+the ratings for the recording with vs.\ the one without code-switches,
+we won't do so here. That said, if you ever need to analyse a study with
+a factorial design such as this, I recommend you read \citet{Schad2020}
+or have a look at my blog post on recoding predictors.
+
+\subsection{Uncertainty estimates}
+We can obtain estimated standard errors as well as confidence intervals
+just like before by using the \texttt{summary()} and \texttt{confint()}
+commands. Again, these computations are based on the assumption
+that the residuals are i.i.d.\ normal, but you can always use bootstrapping
+to check if a different set of assumptions leads to the same conclusion.
+<<>>=
+summary(potential.lm)$coefficients
+confint(potential.lm, level = 0.90)
+@
+Because we used treatment coding here, the estimates for \texttt{Dragan}
+and \texttt{WithCS} aren't too relevant. The study's main result
+is that the presence of code-switches is some $0.93 \pm 0.28$ points more detrimental
+to ratings of `Dragan's' academic potential than it is to ratings of `Luca's' academic
+potential. Equivalently, the \emph{absence} of code-switches is some $0.93 \pm 0.28$ more
+beneficial to ratings of `Dragan's' academic potential 
+than it is to ratings of `Luca's' academic potential. (Interaction effects can often
+be framed in several equivalent ways.)\label{par:finding_berthele}
+
+\section{Interactions between a binary and a continuous predictor}
+Sometimes, researchers want to find out if the relationship between
+a continuous predictor and the outcome differs between groups.
+This type of research question, too, can be addressed in a general linear model.
+The idea is the same as in the previous section: Dummy-code the group variable,
+compute its pointwise product with the continuous predictor, and feed
+the dummy-coded group variable, the continuous predictor, and their pointwise product
+into the model.
+
+For reasons of time, we won't run through
+an example of such an analysis. But you should be aware of a common analytical
+strategy hat does \emph{not} work. This doomed strategy is to fit several 
+models in order to gauge the relationship between
+the continuous predictor and the outcome separately for each group, and
+to conclude that if this relationship is statistically significant in one
+group but not in the other, there must be an interaction between the 
+groups and the continuous predictor. \citet{Gelman2006} and \citet{Nieuwenhuis2011}
+explain why this is a terrible idea.
+
+\section{More complex interactions}
+It's possible to fit interactions between two continuous
+predictors; see the blog entry \href{https://janhove.github.io/analysis/2017/06/26/continuous-interactions}{\textit{Interactions between continuous variables}}.
+It's also possible to fit interactions between three or more predictors.
+However, it can be difficult to make sense of three-way, four-way, etc.\ interactions,
+and I don't have any datasets that call for such an analysis.
+
+\section{A word of warning to the cognitive scientists}
+The mere fact that a statistical model suggests that two predictor variables
+interact in their effect on some outcome variable
+does \emph{not} imply that these predictor variable interact in their effect
+on the \emph{construct} that this outcome variable represents.
+It is particularly important to appreciate this if the interaction in question
+is not a cross-over interaction, that is, if the relative order between two 
+groups or conditions switches depending on the other predictor.
+For instance, if we observe a non-cross-over interaction between reading experience
+and word frequency on reading speed, this does not imply that reading experience
+and word frequency have non-additive effects on the cognitive construct that
+reading speed represents, viz., cognitive effort.
+See \citet{Wagenmakers2012} for further explanation.
+
+\section{Exercises}
+\begin{enumerate}
+  \item (Paper and pencil.) Consider the following fictitious experiment and
+  analysis. Eighty participants are randomly assigned to the four cells
+  of a two-by-two design, each cell corresponding to one of the combinations
+  of two binary predictor variables (Variable 1: A vs.\ B, Variabe 2: X vs.\ Y).
+  Then, their performance on some task is measured, yielding a continuous outcome variable.
+<<echo = FALSE>>=
+df <- data.frame(
+  Var1 = rep(c("A", "B"), each = 40),
+  Var2 = rep(rep(c("X", "Y"), each = 20), 2)
+)
+df$Outcome <- c(
+  rnorm(20, mean = 10, sd = 2),
+  rnorm(20, mean = 9, sd = 2),
+  rnorm(20, mean = 12, sd = 2),
+  rnorm(20, mean = 6, sd = 2)
+)
+df <- df |> 
+  mutate(Var1 = ifelse(Var1 == "A", -0.5, 0.5),
+         Var2 = ifelse(Var2 == "X", -0.5, 0.5),
+         Interaction = Var1*Var2)
+exercise.lm <- lm(Outcome ~ Var1 + Var2 + Interaction, df)
+@
+
+  For the analysis, the analyst uses sum-coding: \texttt{Var1} reads $+0.5$
+  if the participant was assigned to a B-cell and $-0.5$ if they were assigned to
+  an A-cell; \texttt{Var2} reads $+0.5$ if the participant was assigned
+  to a Y-cell and $-0.5$ if they were assigned to an X-cell.
+  The \texttt{Interaction} term is the pointwise product of \texttt{Var1} and \texttt{Var2}.
+  The estimated parameter coefficients are as follows:
+<<echo = FALSE>>=
+coef(exercise.lm)
+@
+  \begin{enumerate}
+    \item Compute the mean outcome value for each of the four cells.
+    \item Explain what the estimated \texttt{(Intercept)} coefficient represents.
+    \item Explain what the estimated \texttt{Var1} and \texttt{Var2} coefficient represent.
+    \item Explain what the estimated \texttt{Interaction} coefficient represents.
+  \end{enumerate}
+  
+  \item (With R.) The main finding in \citet{Berthele2011b} was the 
+  interaction effect of $-0.93 \pm 0.28$ points (90\% CI: $[-1.40, -0.47]$).
+  Double-check this estimated standard error and the 90\% confidence interval
+  using a semi-parametric bootstrap that does not assume that the residuals
+  are homoskedastic.
+  
+  Tip: You can group the data by two variables by using \texttt{group\_by(variable1, variable2)}.
+  
+<<eval = FALSE, echo = FALSE>>=
+d$Prediction <- predict(potential.lm)
+d$Residual <- resid(potential.lm)
+
+n_bootstrap <- 20000
+bs_res <- matrix(ncol = 4, nrow = n_bootstrap)
+
+for (i in 1:n_bootstrap) {
+  d <- d |> 
+    group_by(Dragan, WithCS) |> 
+    mutate(bs_outcome = Prediction + sample(Residual, replace = TRUE))
+  bs.lm <- lm(bs_outcome ~ Dragan + WithCS + DraganWithCS, data = d)
+  bs_res[i, ] <- coef(bs.lm)
+}
+
+apply(bs_res, 2, sd)
+apply(bs_res, 2, quantile, prob = c(0.05, 0.95))
+@
+
+\end{enumerate}
+
+\bibliographystyle{/home/jan/ownCloud/Documents/Literature/unified}
+\bibliography{/home/jan/ownCloud/Documents/Literature/bibliography}
+
+\end{document}

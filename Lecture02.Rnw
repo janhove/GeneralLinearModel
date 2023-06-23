@@ -1,0 +1,902 @@
+\documentclass{article}
+\usepackage[layout = a4paper]{geometry}
+
+\usepackage{parskip}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+\usepackage[sc]{mathpazo}
+\newcommand{\pr}{\,\textrm{pr}}
+\newcommand{\df}{\,\textrm{d}}
+\newcommand{\glm}{\textsc{glm}}
+
+% Abbildungen und Tabellen
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{booktabs}
+\usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+
+% Referenzen
+\usepackage[sort]{natbib}
+
+% Boxes
+\usepackage{framed}
+
+% Hyperlinks
+\usepackage{hyperref}
+\usepackage{varioref}
+
+\title{GLM -- Lecture 2\\Adding a predictor}
+\author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
+
+\date{Ghent, 12--14 July 2023}
+
+% KNITR options -----------------------------------
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
+
+# set global chunk options
+opts_chunk$set(fig.path = 'figs/',
+               fig.align = 'center',
+               fig.show = 'hold',
+               fig.pos = "tp",
+               tidy = FALSE,
+               prompt = TRUE,
+               comment = '',
+               highlight = TRUE,
+               dev = 'cairo_pdf',
+               cache = FALSE,
+               fig.width = 5,
+               fig.height = 5,
+               message = FALSE,
+               warning = FALSE,
+               out.width = '.4\\textwidth')
+opts_knit$set(global.par = TRUE)
+
+options(formatR.arrow = TRUE,
+        width = 60, 
+        show.signif.stars = FALSE, 
+        tibble.print_max = 7,
+        tibble.print_min = 7,
+        digits = 5)
+
+set.seed(2023)
+@
+
+<<echo = FALSE>>=
+par(las = 1,
+    bty = "l",
+    mar = c(3,3,2,1),
+    mgp = c(2,.7, 0),
+    tck = -.01)
+@
+
+<<echo = FALSE>>=
+op <- par()
+@
+
+\begin{document}
+
+\maketitle
+
+Having gained some understanding of how parameters and the uncertainty
+about those parameters can be estimated in the general linear model,
+we are now ready to consider a more interesting flavour of this model.
+What \citet{DeKeyser2010} wanted to find out wasn't so much the mean
+\textsc{gjt} value as the relationship between \textsc{aoa} and \textsc{gjt}.
+It's always a good idea to {\bf draw a graph} first. For the type of
+question we're concerned with, a {\bf scatterplot} is a reasonable choice.
+
+\begin{framed}
+{\bf Plot, plot, plot.} Take out time to learn to draw plots,
+both to learn more about your data and to communicate your findings
+in talks and papers.
+This script will feature some basic examples, but for a better introduction,
+take a look at the following resources:
+\begin{itemize}
+  \item {\it Data visualization: A practical introduction} by Kieran Healy.
+  Available for free at \url{https://socviz.co/}.
+  
+  \item The tutorials available from my blog: \url{https://janhove.github.io/tags.html#tutorial-ref}.
+\end{itemize}
+\end{framed}
+
+Let's first read in the data again:
+<<>>=
+library(tidyverse)
+library(here)
+d <- read_csv(here("data", "dekeyser2010.csv"))
+@
+
+<<echo = FALSE>>=
+theme_set(theme_bw())
+@
+
+
+Since it's impossible for \textsc{gjt} to influence \textsc{aoa}
+but quite likely that \textsc{aoa} influences \textsc{gjt},
+we put the \textsc{aoa} values along the $x$-axis and
+the \textsc{gjt} values along the $y$-axis (Figure \ref{fig:scatterplot}).
+<<out.width = "0.6\\textwidth", fig.width = 5, fig.height = 3, fig.cap = "Scatterplot of the \\textsc{aoa}-\\textsc{gjt} relationship.\\label{fig:scatterplot}">>=
+ggplot(data = d,
+       aes(x = AOA,
+           y = GJT)) +
+  # shape = 1 draws empty circles
+  geom_point(shape = 1) +
+  xlab("Age of acquisition (years)") +
+  ylab("Grammaticality judgement score")
+@
+Note that there's a general tendency for the \textsc{gjt} to be lower
+for ever higher \textsc{aoa} values. Moreover, it seems as though
+this decrease is roughly linear. By way of contrast, Figure \ref{fig:nichtlinear}
+shows four examples of non-linear relationships. Moreover, the scatterplot
+doesn't reveal any implausible data points that could be due to errors during
+data entry and the like: There are no 207-year-olds or \textsc{gjt} scores
+beyond the permissible range of [0, 204].
+
+<<fig.width = 6, fig.height = 1.4, echo = FALSE, fig.cap = "Examples of non-linear relationships.\\label{fig:nichtlinear}", out.width="\\textwidth">>=
+par(mar = c(3, 4, 2, 1), mgp=c(2,.7,0), tck = -0.01, las = 1, cex = 0.65, cex.main = 1.1)
+par(mfrow = c(1, 4), cex.main = 0.8)
+par(cex = 0.65)
+x <- seq(from = 0.01, to = 10, length.out = 50)
+y1 <- sin(x) + rnorm(50, sd = 0.4) + 5
+plot(x, y1, axes = FALSE, main = "sinusoid", xlab = "", ylab = "")
+curve(sin(x)+5, add = TRUE)
+
+x2 <- seq(from = 1, to = 100, length.out = 50)
+y2 <- log2(x2) + rnorm(50, sd = 0.5)
+plot(x2, y2, axes = FALSE, main = "logarithmic increase", xlab = "", ylab = "")
+curve(log2(x), add = TRUE)
+
+y3 <- x - ((x-6)*50)^2 + rnorm(50, sd = 14000)
+plot(x, y3, axes = FALSE, main = "parabola", xlab = "", ylab = "")
+curve(x - ((x-6)*50)^2, add = TRUE)
+
+y4 <- pmin(x - rnorm(50, sd = 1.5), 5.5)
+plot(x, y4, axes = FALSE, main = "ceiling effect", xlab = "", ylab = "")
+lines(seq(0, 10, 0.01), pmin(seq(0, 10, 0.01), 5.5))
+@
+
+In what follows, we will apply the techniques learnt in the previous sections
+in order to answer the following question: How does the \textsc{gjt} variable
+relate to the \textsc{aoa} variable?
+That is, once we know the value of someone's \textsc{aoa}
+what should be our best guess for that person's \textsc{gjt} score?
+
+\section{The simple linear regression equation}
+We proceed as in Lecture 1: we partition the outcome values
+into a part common to all outcome values and some discrepancy from the 
+general trend. This time, however, we include some information about
+the link between \textsc{aoa} and \textsc{gjt} in the `communality' term:
+\[
+  \textrm{a specific outcome} = \textrm{communality between all outcomes (incl.\ link with \textsc{aoa})} + \textrm{discrepancy}.
+\]
+
+Specifically, we will model this communality in terms of a straight line that is
+a function of \textsc{aoa}. Straight lines are parametrised in terms of 
+an intercept (we'll write $\beta_0$) and a slope ($\beta_1$):
+\[
+  f(x) = \beta_0 + \beta_1x.
+\]
+The intercept tells us the $f(x)$ value for $x = 0$;
+the slope tells us by how much $f(x)$ changes when $x$ is increased by one unit;
+see Figure \ref{fig:straightline}. From this we obtain the following 
+{\bf simple linear regression} equation:
+\begin{equation}
+  y_i = \beta_0 + \beta_1x_i + \varepsilon_i.\label{eq:simpleregression}
+\end{equation}
+In our running example, $y_i$ still refers to the $i$-th outcome, i.e., the $i$-th 
+\textsc{gjt} score, and $\varepsilon_i$ still refers to the $i$-th residual.
+What's new is the predictor, $x$ (with values $x_1, x_2, \dots, x_n$); in our example,
+these are the \textsc{aoa} values. The parameters $\beta_0$ and $\beta_1$
+represent the intercept and the slope of the straight line that models the relationship
+between \textsc{aoa} and \textsc{gjt}.
+
+<<echo = FALSE, fig.cap = "Intercept ($\\beta_0$) and slope ($\\beta_1$) of a straight line.\\label{fig:straightline}", fig.width = 4, fig.height = 2.5, out.width = ".6\\textwidth", warning = FALSE>>=
+par(op)
+par(las = 1, bty = "n", mar = rep(0, 4), tck = -0.01, cex = 0.6)
+plot(function(x) -3.2 + 0.7*x, xlab="", ylab="", xaxt = "n", yaxt = "n",
+     xlim = c(-2, 5), ylim = c(-5, 2))
+axis(1, pos=0)
+axis(2, pos=0)
+plotrix::draw.circle(0,-3.2,0.05,nv=100,border="black",col=NA,lty=1,density=NULL,
+  angle=45,lwd=1)
+arrows(x0 = 0.8, x1 = 0.1, y0 = -3.2, length = .12, angle = 20)
+text(x = 1, y = -3.2, expression(beta[0]), cex = 2)
+segments(x0 = 1, x1 = 2, y0 = -3.2+0.7*1, lty = 3)
+segments(x0 = 2, y0 = -3.2+0.7*1, y1 = -3.2+0.7*2, lty = 3)
+text(x = 2.15, y = -3.2+0.7*1.5, '}', cex = 2.5)
+text(x = 2.5, y = -3.2+0.7*1.5, expression(beta[1]), cex = 2)
+@
+
+{\bf Beware of the Greek letter fallacy:} Both the model from Lecture 1 and the one in Equation
+\ref{eq:simpleregression} contain the term $\beta_0$. But these two
+$\beta_0$s refer to different things (mean vs.\ intercept). The meaning
+of a model parameter hinges crucially on the other parameters as well
+as the variables included in the model!
+
+Incidentally, it's called `simple linear regression'
+because we're modelling the outcome in terms of a single
+predictor (hence simple, as opposed to multiple),
+and the outcome is modelled as a weighted sum of the predictor values
+(i.e., as a `linear combination').
+The `regression' bit stems from its origins in studying the phenomenon
+of `regression to the mean', but that'd take us too far.
+
+\section{Estimating the parameters}
+If we just pick our estimates for the $\beta_0, \beta_1$ parameters
+by hand, we could come up with any number of estimates that work sort of okay,
+just like in Lecture 1.
+Of course, what we want is a more principled method.
+
+The estimation approaches we discussed in Lecture 1 still work.
+We will content ourselves with the least squares method as this is the one
+you'll encounter in practice: we choose $\widehat{\beta}_0, \widehat{\beta}_1$
+so as to minimise the sum of the estimated residuals.
+(Equivalently, we could choose them so as to maximise
+the likelihood of the data assuming normally distributed
+residuals.)
+In principle, we could work through a number of suggestions for 
+$\widehat{\beta}_0$ and $\widehat{\beta}_1$ and then choose
+the pair of estimates that minimises $\sum_{i = 1}^n \widehat{\varepsilon_i}^2$.
+Figure \ref{fig:ols} shows that estimates of $\widehat{\beta}_0 \approx 190$
+and $\widehat{\beta}_1 \approx -1.2$ are optimal in this sense.
+<<cache = TRUE, echo = FALSE, fig.cap = "The sum of the squared residuals (divided by 10,000) of the GJT data for different combinations of parameter estimates. You can read this plot like a topographic map: the lines are contour lines. The sum is minimised for an intercept estimate near 190 and a slope estimate near $-1.2$, that is, there's a couldron near these coordinates.\\label{fig:ols}", fig.height = 3.8, fig.width = 3.8, fig.pos="t", out.width = ".7\\textwidth">>=
+parameter_grid <- expand.grid(beta0 = seq(185, 195, 0.2),
+                              beta1 = seq(-2, -0.5, 0.1))
+parameter_grid$SS <- NA
+
+for (i in 1:nrow(parameter_grid)) {
+  predicted <- parameter_grid$beta0[i] + parameter_grid$beta1[i] * d$AOA
+  parameter_grid$SS[i] <- sum((predicted - d$GJT)^2)
+}
+
+SS <- matrix(parameter_grid$SS,
+       nrow = length(unique(parameter_grid$beta0)),
+       ncol = length(unique(parameter_grid$beta1)),
+       byrow = FALSE)
+
+par(las = 1, col = "black", oma = c(0, 0, 0, 0), mar = c(5, 5, 1, 1),
+    tck = -0.005, cex = 0.6)
+contour(x = unique(parameter_grid$beta0),
+        y = unique(parameter_grid$beta1),
+        z = SS/10000,
+        levels = c(2, 2.05, 2.1, seq(2.2, 2.8, 0.4), seq(3, 10, 1)),
+        xlab = expression(widehat(beta)[0]),
+        ylab = expression(widehat(beta)[1]))
+# par(op)
+@
+
+We could also derive these estimates mathematically. Conceptually,
+the maths are fairly easy and old hat (pretty much same as in the proof in Lecture 1,
+but in two dimensions rather than just one),
+but they require some familiarity with first-year university mathematics.
+So let's skip straight to computing the \textsc{ols} estimates in R:
+<<>>=
+aoa.lm <- lm(GJT ~ AOA, data = d)
+coef(aoa.lm)
+@
+
+Having estimated these parameters, we can add the estimated regression line
+to the scatterplot (Figure \ref{fig:simpleregression}).
+<<out.width = "0.6\\textwidth", fig.width = 5, fig.height = 3, fig.cap = "Scatterplot with the estimated regression line.\\label{fig:simpleregression}">>=
+ggplot(data = d,
+       aes(x = AOA,
+           y = GJT)) +
+  geom_point(shape = 1) +
+  geom_abline(intercept = coef(aoa.lm)[[1]],
+              slope = coef(aoa.lm)[[2]])
+@
+
+We could also directly use the \texttt{geom\_smooth()} function:
+<<eval = FALSE>>=
+# not shown
+ggplot(data = d,
+       aes(x = AOA,
+           y = GJT)) +
+  geom_point(shape = 1) +
+  geom_smooth(method = "lm", se = FALSE)
+@
+
+\section{Quantifying uncertainty}
+Our estimates for $\beta_0, \beta_1$ are based on a sample and are hence
+inherently uncertain. Again, we can estimate the degree of this uncertainty
+if we are willing to make some assumptions about the residuals. As in Lecture 1,
+we need to assume that the residuals are i.i.d. 
+We already covered the `independence' part of this assumption.
+The `identical' bit (i.e., the homoskedasticity assumption) can be illustrated
+by taking a look at what some crass violations of it look like:
+Figure \ref{fig:heteroskedasticity} shows three examples where the
+distribution of the residuals, more specifically the variance of this distribution, changes with $x$. 
+If we're willing to make the i.i.d.\ assumption, we can again
+obtain uncertainty measures by means of bootstrapping or by assuming normality.
+
+<<fig.width = 6, fig.height = 1.4, echo = FALSE, fig.cap = "In all scatterplots, the spread of the data varies considerably according to the $x$ or $\\widehat{y}$ values.\\label{fig:heteroskedasticity}", message = FALSE, out.width = ".9\\textwidth">>=
+x <- runif(100, 0, 100)
+y_hat <- 0.3*x
+error1 <- rnorm(n = 100, sd = 0.2 * x)
+error2 <- rnorm(n = 100, sd = 0.2 * (100-x))
+error3 <- rnorm(n = 100, sd = 0.1 * x * (100-x))
+df <- data.frame(x,
+                 y1 = y_hat + error1,
+                 y2 = y_hat + error2,
+                 y3 = y_hat + error3)
+
+p1 <- ggplot(data = df,
+             aes(x = x, y = y1)) +
+  geom_point(shape = 1) +
+  # geom_smooth(method = "lm", se = FALSE) +
+  xlab("x") + ylab("y")
+p2 <- ggplot(data = df,
+             aes(x = x, y = y2)) +
+  geom_point(shape = 1) +
+  # geom_smooth(method = "lm", se = FALSE) +
+  xlab("x") + ylab("y")
+p3 <- ggplot(data = df,
+             aes(x = x, y = y3)) +
+  geom_point(shape = 1) +
+  # geom_smooth(method = "lm", se = FALSE) +
+  xlab("x") + ylab("y")
+
+gridExtra::grid.arrange(p1, p2, p3, ncol = 3)
+@
+
+\subsection{The semi-parametric bootstrap}
+The logic is identical to that of Lecture 1.
+The only difference is that we now estimate two parameters.
+So rather than writing the bootstrapped estimates in a vector,
+we write them as rows in a two-column matrix:
+<<cache = TRUE>>=
+d$Prediction <- predict(aoa.lm)
+d$Residual <- resid(aoa.lm)
+
+n_bootstrap <- 20000
+bs_b <- matrix(nrow = n_bootstrap, ncol = 2)
+
+for (i in 1:n_bootstrap) {
+  # Steps 2 and 3
+  d <- d |> 
+    mutate(bs_outcome = Prediction + sample(Residual, replace = TRUE))
+  # Step 4
+  bs_mod <- lm(bs_outcome ~ AOA, data = d)
+  bs_b[i, ] <- coef(bs_mod)
+}
+@
+
+Let's inspect the first couple of rows of this matrix;
+if you run this code yourself, you'll obtain different results
+due to the randomness in step 2:
+<<>>=
+head(bs_b)
+@
+The first column contains the bootstrapped $\widehat{\beta}_0^*$ values;
+the second column the bootstrapped $\widehat{\beta}_1^*$ values.
+If you draw a histogram of these bootstrap estimates, you'll notice that both 
+distributions look pretty normal:
+<<eval = FALSE>>=
+# not shown
+hist(bs_b[, 1])
+hist(bs_b[, 2])
+@
+
+The standard deviations of these distributions serve as estimates of the
+standard errors for $\widehat{\beta}_0, \widehat{\beta}_1$:
+<<>>=
+# apply(x, 2, function) applies that function to x by columns
+apply(bs_b, 2, sd)
+@
+
+<<eval = FALSE>>=
+# alternatively:
+sd(bs_b[, 1])
+sd(bs_b[, 2])
+@
+
+That is, we estimate $\beta_0$ to be $190.4 \pm 3.8$ and 
+$\beta_1$ to be $-1.2 \pm 0.1$.
+
+Confidence intervals can be obtained like before using the percentile
+method or by referring to a standard normal distribution. So for 95\% confidence
+intervals:
+<<>>=
+# percentile method
+apply(bs_b, 2, quantile, probs = c(0.025, 0.975))
+
+# standard normal
+mean(bs_b[, 1]) + qnorm(c(0.025, 0.975)) * sd(bs_b[, 1])
+mean(bs_b[, 2]) + qnorm(c(0.025, 0.975)) * sd(bs_b[, 2])
+@
+
+Because the distributions of the bootstrapped estimates are both pretty much
+normal, both methods yield essentially the same results.
+
+Note, incidentally, how we made use of the i.i.d.\ assumption in this bootstrap.
+In step 2, we resampled the estimated residuals with replacement, but without
+any further constraints. That is, all draws were independent of one another
+and all were sampled with the same probability from the empirical residual
+distribution.\footnote{Alternatives that do not assume homoskedasticity
+are easy to imagine. We could, for instance, have specified that we only resample
+the residuals for participants with \textsc{aoa} values over 40 from
+participants with \textsc{aoa} values over 40, and similary for participants
+with lower \textsc{aoa} values. This would correspond to the assumption
+that the residuals for participants with high vs.\ low \textsc{aoa} values
+are sampled from separate distributions. The code to run this bootstrap variation
+would only be slightly more complicated.}
+
+\subsection{The parametric bootstrap}
+Alternatively, we could assume that the residuals are drawn from a
+normal distribution, i.e.,
+\begin{align}
+  y_i &= \beta_0 + \beta_1x_i + \varepsilon_i, \label{eq:simple_regression_normal}\\
+  \varepsilon_i &\sim \textrm{Normal}(0, \sigma_{\varepsilon}^2),\nonumber
+\end{align}
+for $i = 1, 2, \dots, n$. Note that this notation encapsulates 
+the homoskedasticity assumption: the variance of the normal distribution
+($\sigma_{\varepsilon}^2$) is the same for all $i = 1, 2, \dots, n$.
+
+The R code to run the bootstrap doesn't contain anything new:
+<<cache = TRUE>>=
+sigma_aoa.lm <- sigma(aoa.lm)
+
+n_bootstrap <- 20000
+bs_b <- matrix(nrow = n_bootstrap, ncol = 2)
+
+for (i in 1:n_bootstrap) {
+  # Steps 2 and 3
+  d <- d |> 
+    mutate(bs_outcome = Prediction + rnorm(n = n(), sd = sigma_aoa.lm))
+  # Step 4
+  bs_mod <- lm(bs_outcome ~ AOA, data = d)
+  bs_b[i, ] <- coef(bs_mod)
+}
+@
+
+Histograms show that the bootstrapped $\beta$ estimates are normally distributed:
+<<eval = FALSE>>=
+# not shown
+hist(bs_b[, 1])
+hist(bs_b[, 2])
+@
+
+The confidence intervals and estimated standard errors we obtain are essentially
+the same as before.
+<<>>=
+apply(bs_b, 2, quantile, probs = c(0.025, 0.975))
+apply(bs_b, 2, sd)
+@
+
+Now's a good time to visualise the uncertainty about the location of the
+regression line. We have 20,000 pairs of bootstrapped estimates of $\beta_0, \beta_1$.
+To gauge the uncertainty about the location of the regression line,
+we can draw a handful of the straight lines implied by these estimates.
+In the code below, the first 100 pairs of estimates are used;
+Figure \ref{fig:bs_regression} shows the result.
+<<out.width = "0.6\\textwidth", fig.width = 5, fig.height = 3, fig.cap = "Scatterplot with 100 bootstrapped regression lines.\\label{fig:bs_regression}">>=
+plot_bs <- ggplot(data = d,
+                  aes(x = AOA,
+                      y = GJT)) +
+  geom_point(shape = 1)
+
+for (i in 1:100) {
+  plot_bs <- plot_bs +
+    geom_abline(intercept = bs_b[i, 1],
+                slope = bs_b[i, 2],
+                # use alpha to make the lines a bit transparent
+                alpha = 1/10)
+}
+
+plot_bs
+@
+
+In practice, people don't draw these bootstrapped regression lines.
+Instead, they colour in the region in which most of these lines
+fall. This region is known as a (pointwise) {\bf confidence band}.
+Let's see how we can draw generate such confidence bands ourselves
+as this'll give us some further insights into the general linear model.
+First, we generate a sequence of predictor values for which we want
+to plot the confidence band. Here, we just take all integers between
+the minimum and maximum \textsc{aoa} values in our sample:
+<<>>=
+# Step 1
+new_aoa <- seq(from = min(d$AOA), to = max(d$AOA), by = 1)
+# that is, 5, 6, 7, ..., 69, 70, 71
+@
+Note that there are 67 values in \texttt{new\_aoa}.
+We have already generated 20,000 pairs of bootstrapped parameter estimates.
+For each of these pairs, we can compute the location of the bootstrapped
+regression line at each of the newly created predictor values.
+For instance, we can evaluate the regression line for the 37th bootstrap run
+like so:
+<<>>=
+bs_b[37, 1] + bs_b[37, 2] * new_aoa
+@
+Note that this yields 67 values -- one for each \texttt{new\_aoa} value.
+We now carry out this computation not only for the 37th bootstrap run
+but for all 20,000 runs. We store the results into a 20,000-by-67 matrix:
+<<cache = TRUE>>=
+# Step 2
+bs_y_hat <- matrix(nrow = n_bootstrap,
+                   ncol = length(new_aoa))
+for (j in 1:n_bootstrap) {
+  bs_y_hat[j, ] <- bs_b[j, 1] + bs_b[j, 2]*new_aoa
+}
+@
+Each row of this matrix contains the location of a different bootstrapped
+regression line corresponding to all 67 different values of \texttt{new\_aoa}.
+We now look up the 2.5th and 97.5th percentile of the generated values
+at each \texttt{new\_aoa} value; at each point, 95\% of the bootstrapped regression
+lines lie between these percentiles:
+<<>>=
+# Step 3
+lo_95 <- apply(bs_y_hat, 2, quantile, probs = 0.025)
+hi_95 <- apply(bs_y_hat, 2, quantile, probs = 0.975)
+@
+Finally, we combine the predictor values and these percentile values into a tibble and plot them.\footnote{Tibbles are the counterpart of standard data frames when using the tidyverse package. But you can use \texttt{data.frame()} instead of \texttt{tibble()} if you prefer.}
+See Figure \ref{fig:bs_confidenceband}.
+<<out.width = "0.6\\textwidth", fig.width = 5, fig.height = 3, fig.cap = "Scatterplot with a 95\\% confidence band for the regression line.\\label{fig:bs_confidenceband}">>=
+# Step 4
+confidence_band_tbl <- tibble(new_aoa, lo_95, hi_95)
+
+ggplot(data = confidence_band_tbl,
+       aes(x = new_aoa)) +
+  geom_ribbon(aes(ymin = lo_95,
+                  ymax = hi_95),
+              fill = "lightgrey") +
+  geom_point(data = d,
+             aes(x = AOA, y = GJT),
+             shape = 1) +
+  geom_abline(intercept = coef(aoa.lm)[[1]],
+              slope = coef(aoa.lm)[[2]]) +
+  xlab("AOA") +
+  ylab("GJT")
+@
+
+\subsection{t-distributions}
+As long as we're assuming that the residuals are i.i.d.\ draws from
+a normal distribution, we might as well estimate the standard errors
+and compute the confidence intervals for the parameter estimates directly.
+<<>>=
+summary(aoa.lm)
+confint(aoa.lm)
+@
+
+We can also directly obtain a confidence interval for the location
+of the regression line some prespecified predictor values using
+the \texttt{predict()} function. The following command generates
+a 95\% confidence interval for the location of the regression line
+at each of the 67 values in \texttt{new\_aoa}.
+<<>>=
+conf_band_t <- predict(aoa.lm, newdata = tibble(AOA = new_aoa),
+                       interval = "confidence")
+head(conf_band_t) # 1st row: AOA = 5, 2nd: AOA = 6, etc.
+@
+
+We can plot the result of these computations, the result of which is hardly
+discernible from the one obtained previously:
+<<eval = FALSE>>=
+# not shown
+conf_band_t <- as.tibble(conf_band_t)
+conf_band_t$AOA <- new_aoa
+conf_band_t
+ggplot(data = conf_band_t,
+       aes(x = AOA)) +
+  geom_ribbon(aes(ymin = lwr,
+                  ymax = upr),
+              fill = "lightgrey") +
+  geom_point(data = d,
+             aes(x = AOA, y = GJT),
+             shape = 1) +
+  geom_line(aes(y = fit)) +
+  xlab("AOA") +
+  ylab("GJT")
+@
+
+Once we've understood what we're really doing when drawing a confidence band,
+we can do so without all the rigmarole: 
+<<eval = FALSE>>=
+# not shown
+ggplot(data = d,
+       aes(x = AOA, y = GJT)) +
+  geom_point(shape = 1) +
+  geom_smooth(method = "lm")
+@
+
+\section{Interpreting regression lines}
+Equation \ref{eq:simple_regression_normal} is useful for getting a conceptual
+grasp of the regression line. According to this equation, we assume that
+the residuals are drawn i.i.d.\ from a normal distribution with mean 0
+and variance $\sigma_{\varepsilon}^2$.
+For a fixed $x$ value, the expected distribution of the $y$ values, then,
+is a normal distribution centred on $\beta_0 + \beta_1x$ and with variance
+$\sigma_{\varepsilon}^2$. Plugging in our estimates for 
+$\beta_0, \beta_1, \sigma_{\varepsilon}^2$, we obtain the estimated expected
+distribution of $y$ for a given $x$ value. The estimated regression line, then,
+shows the estimated {\bf conditional means} of $y$ for the different values of $x$.
+Figure \ref{fig:conditionalmean} illustrates this concept graphically.
+The cross-section of the 95\% confidence band at a given $x$ value
+is the 95\% confidence interval of the corresponding conditional mean.
+
+<<fig.width = 4, fig.height = 3, echo = FALSE, fig.cap = "If we assume that the residuals are i.i.d., then the regression line connects the conditional means for distribution of $y$ at different $x$-values. In this illustration, the residuals are all assumed to be normally distributed, but this is not a necessary assumption for making sense of the regression line. If the residuals aren't normally distributed, however, it's possible that the conditional means don't capture what's interesting about how $x$ and $y$ relate to each other.\\label{fig:conditionalmean}", out.width = ".8\\textwidth">>=
+set.seed(1)
+x <- runif(200)
+dat <- data.frame(x = x,
+                  y = 0.4 + 4*x + rnorm(100, sd = 0.5))
+
+
+df1 <- data.frame(yval = seq(-0.3, 2.7, 0.1),
+                  xval = dnorm(seq(-0.3, 2.7, 0.1),
+                               0.4+4*0.2,
+                               0.5)/8+0.2)
+
+df2 <- data.frame(yval = seq(0.9, 3.9, 0.1),
+                  xval = dnorm(seq(0.9, 3.9, 0.1),
+                               2.4,
+                               0.5)/8+0.5)
+
+df3 <- data.frame(yval = seq(2.1, 5.1, 0.1),
+                  xval = dnorm(seq(2.1, 5.1, 0.1),
+                               3.6,
+                               0.5)/8+0.8)
+par(cex = 0.75, mar = c(4, 4, 2, 2), las = 1)
+plot(dat, col = "grey")
+with(df1,lines(xval,yval, col = "red"))
+with(df2,lines(xval,yval, col = "red"))
+with(df3,lines(xval,yval, col = "red"))
+segments(x0 = 0.2, x1 = 0.2+0.09973557,
+         y0 = 0.4+4*0.2, col = "red")
+segments(x0 = 0.5, x1 = 0.5+0.09973557,
+         y0 = 0.4+4*0.5, col = "red")
+segments(x0 = 0.8, x1 = 0.8+0.09973557,
+         y0 = 0.4+4*0.8, col = "red")
+abline(v = 0.2, lty = 2)
+abline(v = 0.5, lty = 2)
+abline(v = 0.8, lty = 2)
+abline(0.4, 4, col = "blue")
+par(cex = 1)
+@
+
+Let's look at a couple of examples of how we can interpret our model.
+\begin{itemize}
+
+  \item According to the \texttt{aoa.lm} model,
+  the estimated $\beta$ parameters are 190.4 and $-1.22$.
+  So according to this model, if we were to sample lots of
+  participants with an \textsc{aoa} of 15,
+  the best guess for their mean \textsc{gjt} score would be
+  $190.4 - 1.22\cdot 15 = 172.1$. The same answer can be 
+  obtained using \texttt{predict()}:
+<<>>=
+predict(aoa.lm, newdata = tibble(AOA = 15))
+@
+
+  Note, however, that there are two participants in the data set
+  with an \textsc{aoa} of 15, and their mean \textsc{gjt} score isn't
+  172.1:
+<<>>=
+d |> filter(AOA == 15)
+@
+
+  The extent to which our model-based estimate of the conditional
+  \textsc{gjt} mean for an \textsc{aoa} value of 15 is more accurate
+  than the mean of these two observations depends on the accuracy
+  of our modelling assumptions -- especially the assumption that
+  the \textsc{aoa}--\textsc{gjt} relationship is roughly linear.
+  This doesn't seem too much of a stretch, and, conceptually, this
+  assumption allows us to estimate the conditional mean for a given \textsc{aoa} value 
+  more accurately by leveraging the information about the relationship
+  between \textsc{aoa} and \textsc{gjt} that we can extract from the other
+  data points.
+
+\item There are no participants with an \textsc{aoa} of 21 in our sample.
+But according to our model, if we were to sample lots of participants
+with this \textsc{aoa}, their mean \textsc{gjt} would be about 165:
+<<>>=
+predict(aoa.lm, newdata = tibble(AOA = 21))
+@
+This is an example of {\bf intrapolation}, as we have both participants
+with lower and with higher \textsc{aoa} values.
+
+\item There are no participants with an \textsc{aoa} of 82 in our sample.
+But according to our model, if we were to sample lots of participants
+with this \textsc{aoa}, their mean \textsc{gjt} would be about 91:
+<<>>=
+predict(aoa.lm, newdata = tibble(AOA = 82))
+@
+This is an example of {\bf extrapolation}, since the maximum \textsc{aoa}
+in our sample is 71.
+
+\item The mean \textsc{aoa} in our sample is about 32.5. The estimated
+\textsc{gjt} mean for this \textsc{aoa} corresponds exactly to the 
+\textsc{gjt} mean for the entire sample:
+<<>>=
+mean(d$GJT)
+predict(aoa.lm, newdata = tibble(AOA = mean(d$AOA)))
+@
+This is not a coincidence but a general phenomenon, the proof of which
+is provided in the footnote.\footnote{The estimated conditional mean
+for the mean predictor value equals the sample mean of the outcome.
+\begin{proof}
+According to the regression model, $y_i = \widehat{\beta}_0 + \widehat{\beta}_1x_i + \widehat{\varepsilon_i}$ for $i = 1, 2, \dots, n$. Hence we have
+\[
+  \frac{1}{n}\sum_{i = 1}^n y_i
+  = \frac{1}{n}\sum_{i = 1}^n(\widehat{\beta}_0 + \widehat{\beta}_1x_i + \widehat{\varepsilon_i})
+  = \frac{1}{n}n\widehat{\beta}_0 + \frac{1}{n}\widehat{\beta}_1\sum_{i=1}^n x_i + \frac{1}{n}\sum_{i=1}^n \widehat{\varepsilon_i}.
+\]
+We know that the mean of the estimated residuals is always zero when using \textsc{ols},
+so this simplifies to
+\[
+    \frac{1}{n}\sum_{i = 1}^n y_i = \widehat{\beta}_0 + \widehat{\beta}_1\left(\frac{1}{n}\sum_{i=1}^n x_i\right).\qedhere
+\]
+\end{proof}}
+\end{itemize}
+
+Use your common sense when intra- and extrapolating.
+If we have a sample of participants aged 8--26, 
+we'd be on thin ice extrapolating to participants aged 5 or 45;
+see Figure \ref{fig:extrapolation}, left.
+The plot on the right illustrates the dangers with intrapolation.
+That said, even with densely sampled data it is still possible
+that a seemingly linear relationship is strongly nonlinear;
+see Figure \ref{fig:sinusoid}.
+
+<<echo = FALSE, fig.width = 6, fig.height = 2.5, out.width = ".9\\textwidth", warning = FALSE, fig.cap="Dangers when extra- or intrapolating.\\label{fig:extrapolation}">>=
+par(mfrow = c(1, 2), cex = 0.65, cex.main = 1,
+    mar = c(4, 4, 2, 2), bg = "white")
+set.seed(123456)
+alter1 <- round(runif(40, 10, 35))
+sample1 <- (alter1-20) - 0.01 * (alter1-1)^2 + 20 + rnorm(length(alter1), sd = 2)
+plot(alter1, sample1,
+     xlim = c(10, 80), xlab = "Age (years)", yaxt = "n",
+     ylim = c(0, 50), ylab = "Skills",
+     main = "Danger when extrapolating")
+abline(lm(sample1 ~ alter1))
+text(x = 55, y = 45, "extrapolated estimate\nfor skill")
+curve(20 + (x-20) - 0.01*(x-1)^2, from = 10, to = 80,
+      xlab = "Age (years)",
+      ylab = "Skills", add = TRUE, col = "#377EB8")
+text(x = 55, y = 15, "actual development\nof skill", col = "#377EB8")
+
+alter2 <- round(c(runif(20, 10, 12),
+                  runif(20, 75, 77)))
+sample2 <- 20 + (alter2-40)^2 + rnorm(length(alter2), sd = 200)
+plot(alter2, sample2,
+     xlim = c(10, 80), xlab = "Age (years)",
+     ylim = c(0, 2000), ylab = "Response latency", yaxt = "n",
+     main = "Danger when intrapolating")
+abline(lm(sample2 ~ alter2))
+text(x = 45, y = 1350, "intrapolated estimate\nfor response latency")
+curve(20 + ((x-40)^2), from = 10, to = 80,
+      xlab = "Age (years)",
+      ylab = "Response latency", add = TRUE, col = "#377EB8")
+text(x = 45, y = 300, "actual development\nof response latency", col = "#377EB8")
+par(op)
+@
+
+<<echo = FALSE, fig.width = 6, fig.height = 2.5, out.width = ".5\\textwidth", warning = FALSE, fig.cap="If we only observed the black dots, we'd probably think the relationship was linear. How much we'd be wrong when intrapolating between the measuring points depends on the amplitude of the wave.\\label{fig:sinusoid}">>=
+curve(x + 10*sin(4*x), from = -2*pi, to = 2*pi,
+      col = "#377EB8", xlab = "x", ylab = "y")
+x <- seq(from = -2*pi, to = 2*pi, by = pi/4)
+y <- x + 10*sin(4*x)
+points(x, y, pch = 16)
+@
+
+Finally, a word on the meaning of the estimated intercept,
+$\widehat{\beta}_0$. The intercept represent the estimated conditional mean
+for participants with a predictor value of 0. However, zero
+lies outside the range of \textsc{aoa} values in our sample.
+A common trick to render the estimated intercept more informative about the data
+is to {\bf centre} the predictor at some sensible value, usually the mean
+or the median. Centring just mean subtracting this sensible value
+from all the predictor values before fitting the model:
+<<>>=
+# centre AOA
+d$c.AOA <- d$AOA - mean(d$AOA)
+
+# fit model again
+aoa.lm <- lm(GJT ~ c.AOA, data = d)
+
+# model coefficients
+summary(aoa.lm)$coefficients
+@
+
+The advantage of centring is that the estimated intercept now
+represents the conditional mean of the outcome for the predictor
+value around which was centred (including the estimated standard error
+for this mean). If we centre around the mean predictor value,
+then we've already seen that this yields the sample mean.
+
+Note that in order to compute the conditional mean for an \textsc{aoa} 
+value of 35, we have to subtract the \textsc{aoa} mean from this predictor
+value, too:
+<<>>=
+predict(aoa.lm, newdata = tibble(c.AOA = 35 - mean(d$AOA)))
+@
+So not (!):
+<<>>=
+predict(aoa.lm, newdata = tibble(c.AOA = 35))
+@
+
+\section{Assumptions and relevance, Episode 2}
+The assumptions we've made throughout this section (linear relationship,
+homoskedasticity, normality) almost never hold literally. Instead of worrying
+whether these assumptions literally hold (they don't), ask yourself whether
+your model is relevant to the questions you want to answer. The simple linear 
+model seeks to characterise the linear relationship between the predictor
+and the outcome. If the relationship between predictor and outcome isn't approximately
+linear, the model's output will still be literally correct in many situations;
+but it may not help you find out what you want to know. In such cases, purely
+graphical data analyses or models capable of capturing nonlinearities (e.g.,
+generalised additive models) may be
+of interest.
+
+Similarly, if the spread around the regression line is much larger at one end 
+of the scale than at the other, your model may still be literally correct.
+But since it assumes that the spread is homogeneous, it won't be able to pick
+up on this kind of difference. If you think such differences in spread are
+relevant to your research project, you may want to resort to models that not
+only capture conditional means but changes in the spread as well (e.g.,
+generalised least-squares models).
+
+As always, plotting the data helps you and your readership from flying blind.
+
+\section*{Summary}
+\begin{itemize}
+  \item The procedures introduced in Lecture 1 can be extended quite easily
+  in order to model the relationship between two numeric variables.
+  In the next lectures, we'll broaden the scope even more.
+  
+  \item The intercept represents the estimated outcome value when the
+  predictor variable is fixed at 0. Depending on your data and research question,
+  this may not be relevant information, but you can translate your predictor
+  data to make the intercept more meaningful.
+  
+  \item The slope is the estimated difference between the outcome distributions
+  of observations that differ by one unit in the predictor variable.
+\end{itemize}
+
+\section*{Exercises}
+\begin{enumerate}
+  \item (Paper and pencil.) Let's fit another model on DeKeyser et al.'s data:
+<<>>=
+gjt.lm <- lm(AOA ~ GJT, data = d)
+summary(gjt.lm)$coefficients
+@
+\begin{enumerate}
+\item What do the parameter estimates for \texttt{(Intercept)}
+and \texttt{GJT} mean -- literally?
+\item Which of the two models (\texttt{aoa.lm} or \texttt{gjt.lm}) is the most relevant in the context of DeKeyser et al.'s study? Why?
+\end{enumerate}
+
+\item (With R.) The dataset \texttt{vanhove2014\_cognates.csv} contains a summary of some data I collected for my PhD thesis \citep{Vanhove2014}. 163 speakers of German were asked to translate 45 written and 45 spoken Swedish words into German. The columns \texttt{CorrectSpoken} and \texttt{CorrectWritten} contain the number of correct translations per participants in both modalities. The dataset \texttt{vanhove2014\_background.csv} contains some background information about the participants, including their performance on a handful cognitive tests.
+
+Let's first combine these datasets. (In addition to learning how to visualise data, learning to summarise, transform, and combine datasets is incredibly useful, but unfortunately out of the scope of this lecture series. See \url{https://r4ds.had.co.nz/} if you're interested in learning more about these topics.)
+<<>>=
+cognates <- read_csv(here("data", "vanhove2014_cognates.csv"))
+background <- read_csv(here("data", "vanhove2014_background.csv"))
+all_data <- cognates |> 
+  left_join(background, by = "Subject")
+@
+Now try to answer the following questions.
+\begin{enumerate}
+  \item The column \texttt{DS.Span} contains the participants' score on a working
+  memory task. How is their performance on this task associated with \texttt{CorrectSpoken}?
+  
+  \item How is their performance on an English proficiency test (\texttt{English.Overall})
+  associated with \texttt{CorrectWritten}?
+  
+  \item How does their performance on the Swedish translation tasks vary with \texttt{Age}?
+\end{enumerate}
+  
+\end{enumerate}
+
+\bibliographystyle{/home/jan/ownCloud/Documents/Literature/unified}
+\bibliography{/home/jan/ownCloud/Documents/Literature/bibliography}
+
+\end{document}

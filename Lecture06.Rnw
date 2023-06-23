@@ -1,0 +1,587 @@
+\documentclass{article}
+\usepackage[layout = a4paper]{geometry}
+
+\usepackage{parskip}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+\usepackage[sc]{mathpazo}
+\newcommand{\Prob}{\,\mathbb{P}}
+\newcommand{\df}{\,\textrm{d}}
+\newcommand{\glm}{\textsc{glm}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% Abbildungen und Tabellen
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{booktabs}
+\usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+
+% Referenzen
+\usepackage[sort]{natbib}
+
+% Boxes
+\usepackage{framed}
+
+% Hyperlinks
+\usepackage{hyperref}
+\usepackage{varioref}
+
+\title{GLM -- Lecture 6\\The basics of logistic regression}
+\author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
+
+\date{Ghent, 12--14 July 2023}
+
+% KNITR options -----------------------------------
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
+
+# set global chunk options
+opts_chunk$set(fig.path = 'figs/',
+               fig.align = 'center',
+               fig.show = 'hold',
+               fig.pos = "tp",
+               tidy = FALSE,
+               prompt = TRUE,
+               comment = '',
+               highlight = TRUE,
+               dev = 'cairo_pdf',
+               cache = FALSE,
+               fig.width = 5,
+               fig.height = 5,
+               message = FALSE,
+               warning = FALSE,
+               out.width = '.4\\textwidth')
+opts_knit$set(global.par = TRUE)
+
+options(formatR.arrow = TRUE,
+        width = 60, 
+        show.signif.stars = FALSE, 
+        tibble.print_max = 7,
+        tibble.print_min = 7,
+        digits = 5)
+
+set.seed(2023-07-12)
+@
+
+<<echo = FALSE>>=
+par(las = 1,
+    bty = "l",
+    mar = c(3,3,2,1),
+    mgp = c(2,.7, 0),
+    tck = -.01)
+@
+
+<<echo = FALSE>>=
+op <- par()
+@
+
+\begin{document}
+
+\maketitle
+
+Up till now, we've only dealt with outcome variables that we considered to
+be more or less continuous.\footnote{In none of the real-life examples we
+encountered were the outcomes literally continuous, though. Scores on a
+204-item test can only be integers between 0 and 204, for instance. Hence
+`considered'.}
+In language research, however, we often deal with binary outcome data
+such as accuracy (correct/incorrect), presence vs.\ absence, etc.
+It is possible to analyse such binary data in a general linear model
+by coding one level of the variable as 1 and the other as 0.
+This is referred to as the {\bf linear probability model},
+and it may be an appropriate tool when analysing the data from experiments
+with categorical predictors \citep[see][]{Hellevik2009,Huang2019}.
+% While the residuals of such models are bound to violate the assumptions
+% of homoskedasticity and normality, bootstrapping techniques can be used
+% to double-check the inferences drawn from such models under different sets
+% of assumptions.
+
+That said, researchers should be aware of some possible problems with the 
+linear probability model \citep[see][]{Jaeger2008}. An especially glaring 
+problem is that linear probability models with continuous predictors can
+generate impossible predictions, namely probabilities smaller than 0 or greater 
+than 1. Even for categorical predictors, such models can yield confidence
+intervals that lie partially outside of the $[0,1]$ interval.
+
+While the latter problem can be addressed in linear probability models
+by constructing the confidence intervals using bootstrap techniques,
+another option is to adjust the general linear model so that it can
+accommodate binary (and other) outcome types. This gives rise to the
+{\bf generalised linear model} (I didn't come up with these names\dots).
+In our field, the most common type of generalised linear model beside
+the general linear model is the logistic regression model for dealing
+with binary outcome data, which we'll introduce in this lecture.
+
+\section{Categorical predictors}
+\citet{Tversky1981} presented their participants with a hypothetical 
+scenario and asked them to choose between one of two actions:
+\begin{quote}
+ ``Imagine that the U.S. is preparing for the outbreak of a
+ an unusual Asian disease, which is expected to kill 600 people.
+ Two alternative programs to combat the disease have been proposed.
+ Assume that the exact scientific estimate of the consequences
+ of the programs are as follows:''
+\end{quote}
+For about half of the participants, the consequences of these programmes
+were framed as gains ({\it gain framing}):
+\begin{quote}
+``If Program A is adopted, 200 people will be saved.
+
+If Program B is adopted, there is a 1/3 probability
+that 600 people will be saved, and a 2/3 probability
+that no people will be saved.''
+\end{quote}
+For the other participants, the consequences of these programmes
+framed as losses ({\it loss framing}):
+\begin{quote}
+``If Program A is adopted, 400 people will die.
+
+If Program B is adopted, there is a 1/3 probability
+that nobody will die, and a 2/3 probability
+that 600 people will die.''
+\end{quote}
+Note that the consequences of Programme A is the same regardless of how it's
+consequences are framed, and the same goes for Programme B. Note furthermore
+that in both programmes, 400 people are expected to die. The only difference
+is that this is a certainty in Programme A and a probabilistic expectation
+in Programme B.
+Table \ref{tab:tversky} shows how the participants' preferences varied between
+the framing conditions.
+
+\begin{table}[]
+\centering
+\caption{Number of choices for Programme A and Programme B depending on how the programmes were presented \citep{Tversky1981}.}
+\label{tab:tversky}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+             & Programme A & Programme B \\ \midrule
+Gain framing & 109         & 43          \\
+Loss framing & 34          & 121         \\ \bottomrule
+\end{tabular}
+\end{table}
+
+Let's reconstructed the dataset:
+<<>>=
+library(tidyverse)
+d <- tibble(
+  framing = c(rep("gain", 109 + 43),
+              rep("loss", 34 + 121)),
+  choice = c(rep("A", 109), rep("B", 43),
+             rep("A", 34), rep("B", 121))
+)
+xtabs(~ framing + choice, d)
+@
+
+It's easy to compute the proportion of choices for Programme A (the sure option):
+<<>>=
+d |> 
+  group_by(framing) |> 
+  summarise(proportion_sure = mean(choice == "A"))
+@
+
+Using the linear probability model, the difference in the proportions
+can be retrieved easily, and uncertainty estimates for this differences can
+be computed:
+<<>>=
+d <- d |> 
+  mutate(sure_choice = ifelse(choice == "A", 1, 0),
+         n.loss = ifelse(framing == "loss", 1, 0))
+tversky.lm <- lm(sure_choice ~ n.loss, data = d)
+summary(tversky.lm)$coefficients
+confint(tversky.lm)
+@
+You can double-check these confidence intervals using a semi-parametric
+bootstrap that does not assume homoskedasticity, but we won't do so here.
+
+As explained in the introduction, a possible problem with the linear probability
+model is that the model generates predictions (and confidence intervals)
+that go outside the permissible range for probabilities. One solution to this
+problem is to not work directly with proportions or probabilities
+but to work with so-called {\bf log-odds} instead. To understand these,
+we first need to understand what odds and odds ratios are.
+
+Instead of saying that the proportion of sure choices under
+gain framing was $0.7171$, we could also say that for each unsure choice,
+there are about $2.53$ sure choices:
+\[
+  \frac{109}{43} = \frac{0.7171}{1 - 0.7171} \approx 2.53.
+\]
+The {\bf odds} of a sure choice in the gain framing condition, then,
+are 2.53 to 1.
+Similarly, the odds of a sure choice in the loss framing condition are
+\[
+  \frac{34}{121} = \frac{0.2194}{1 - 0.2194} \approx 0.28,
+\]
+that is, for each unsure choice there were 0.28 sure choices.
+
+To convert a proportion $p$ to odds $\varphi$, then, we can use the formula 
+\[
+\varphi = \frac{p}{1-p}.
+\]
+Given some odds $\varphi$, we can backtransform these to the proportion $p$
+using the formula 
+\[
+  p = \frac{\varphi}{1 + \varphi}.
+\]
+In order to express the preference difference between the gain and loss
+framing conditions, we can compute an {\bf odds ratio}. This shows that the
+odds of a sure choice in the loss framing condition are
+\[
+  \frac{34\Big/121}{109\Big/43} = \frac{0.28}{2.53} = 0.11
+\]
+as large as in the gain framing condition. Equivalently, the odds of a sure
+choice are about 9 times as large in the gain framing condition as
+in the loss framing condition.
+
+Odds and odds ratios cannot be negative. But by taking their (natural) logarithm, we can
+further transform them so that their theoretical range is the entire real
+axis.\footnote{For $a > 1, c > 0$, if $a^b = c$, then $\log_a c = b$. The natural logarithm, written $\ln$, uses Euler's number, $e \approx 2.718$ for $a$. Note that since $a^0 = 1$, $\log_a 1 = \ln 1 = 0$. Note further that 
+\[
+  a^{\log_a c} = c.
+\]} 
+The natural logarithm of odds or odds ratios are called {\bf log-odds}.
+In our example, the log-odds of a sure choice in the gain framing condition
+are
+\[
+  \ln 2.53 \approx 0.93,
+\]
+compared to 
+\[
+  \ln 0.28 \approx -1.27
+\]
+in the loss framing condition.
+Due to the properties of logarithms ($\log a/b = \log a - \log b$),
+the difference between these log-odds is the logarithm of the odds ratio:
+\[
+  \ln 0.28 - \ln 2.53 = \ln \frac{0.28}{2.53} = \ln 0.11 \approx -2.21.
+\]
+
+As these computations shows, a proportion or probability $p$ can be converted to 
+log-odds $\eta$ using the following formula:
+\[
+  \eta = \ln \varphi = \ln \frac{p}{1-p}.
+\]
+This function, which maps proportions to log-odds, is known as the {\bf logit function}.
+To compute proportions or probabilities from log-odds, we need to find its inverse:
+\begin{align*}
+  &            & \eta &= \ln \frac{p}{1-p} \\
+  &\Rightarrow & \exp(\eta) &= \frac{p}{1-p} \\
+  &\Rightarrow & \exp(\eta) - p\exp(\eta) &= p \\
+  &\Rightarrow & \exp(\eta) &= p(1 + \exp(\eta)) \\
+  &\Rightarrow & p &= \frac{\exp(\eta)}{1 + \exp(\eta)} = \frac{1}{1/(\exp(\eta)) + 1} = \frac{1}{1 + \exp(- \eta)}.
+\end{align*}
+
+For instance, given the log-odds of 0.93, we can compute the original proportion like so:
+<<>>=
+1 / (1 + exp(-0.93))
+@
+The function for converting log-odds into probabilities is called the {\bf logistic function}.
+It is implemented in R as \texttt{plogis()}:
+<<>>=
+plogis(0.93)
+@
+Figure \ref{fig:logodds} shows that the logistic function looks like.
+
+<<echo = FALSE, out.width=".5\\textwidth",fig.width = 0.6*7, fig.height = 0.6*5, fig.cap = "Converting log-odds into probabilities.\\label{fig:logodds}">>=
+library(tidyverse)
+
+p_to_odds <- function(x) {
+  x/(1-x)
+}
+
+p_to_logodds <- function(x) {
+  log(x/(1-x))
+}
+
+p3 <- ggplot(data.frame(x = c(-5, 5)),
+       aes(x = x)) +
+  stat_function(fun = plogis) +
+  ylab("Probability (p)") +
+  xlab("Log-odds"  ~ "(ln" ~ frac(p, 1-p) ~ ")")
+
+p3
+@
+
+For our present example, we now let $p_i$ denote the probability 
+that the $i$-th participant prefers the sure programme, $i = 1, \dots, 307$.
+Then we can conceive of each participant's decision as a {\bf Bernoulli experiment}
+with success probability $p_i$. More formally, the choice of the $i$-th
+participant is modelled as a Bernoulli random variable $X_i \sim \textrm{Bernoulli}(p_i)$,
+which means that
+\[
+  \Prob(X_i = x) = 
+  p_i^x(1-p_i)^{1-x} =
+  \begin{cases}
+    1 - p_i, & \textrm{if $x = 0$}, \\
+    p_i, & \textrm{if $x = 1$}.
+  \end{cases}
+\]
+Our goal is to estimate the $p_i$s. We do so by transforming them to log-odds
+and by modelling these log-odds in a linear model:
+\begin{align}
+  X_i &\sim \textrm{Bernoulli}(p_i), \nonumber \\
+  p_i &= \frac{1}{1 + \exp(- \eta_i)}, \nonumber \\
+  \eta_i &= \beta_0 + \beta_1x_i, \nonumber \\
+\end{align}
+where $x_i = 1$ if the $i$-th participant was presented the scenario
+with loss framing and $x_i = 0$ otherwise and where $X_1, \dots X_{307}$
+are independently distributed.
+
+The model parameters are estimated using maximum likelihood estimation,
+which was briefly mentioned at the end of Lecture 1. In brief, we
+pick as our estimates $\widehat{\beta}_0, \widehat{\beta}_1$
+the $\beta_0$ and $\beta_1$ given which the data we have observed
+would be most likely to occur:
+\[
+  (\widehat{\beta}_0, \widehat{\beta}_1)
+  = \argmax_{(\beta_0, \beta_1)} \prod_{i=1}^{307} p_i^{X_i}(1-p_i)^{1-X_i},
+\]
+where 
+\[
+  p_i = \frac{1}{+ \exp(-(\beta_0 + \beta_1x_i))}.
+\]
+We'll skip how this computation can be converted into a more computer-friendly
+form. Figure \ref{fig:mle} shows that a $\widehat{\beta}_0$ value around $1$
+and a $\widehat{\beta}_1$ value around $-2$ maximise these data's likelihood.
+
+<<cache = TRUE, echo = FALSE, fig.cap = "The log-likelihood of different choices for $\\widehat{\\beta}_0$ and $\\widehat{\\beta}_1$. The log-likelihood is maximised for $\\widehat{\\beta}_0$ values near 1 and $\\widehat{\\beta}_1$ values around $-2$.\\label{fig:mle}", fig.height = 1.5*3.8, fig.width = 1.5*3.8, fig.pos="t", out.width = ".65\\textwidth">>=
+parameter_grid <- expand.grid(beta0 = seq(-2, 3, 0.02),
+                              beta1 = seq(-5, 1, 0.02))
+parameter_grid$log_likelihood <- NA
+
+for (i in 1:nrow(parameter_grid)) {
+  mu <- parameter_grid$beta0[i] + parameter_grid$beta1[i] * d$n.loss
+  p <- plogis(mu)
+  parameter_grid$log_likelihood[[i]] <-
+    sum(d$sure_choice * log(p) + (1 - d$sure_choice)*log(1-p))
+}
+
+log_likelihood <- matrix(parameter_grid$log_likelihood,
+             nrow = length(unique(parameter_grid$beta0)),
+             ncol = length(unique(parameter_grid$beta1)),
+             byrow = FALSE)
+
+par(las = 1, col = "black", oma = c(0, 0, 0, 0), mar = c(5, 5, 1, 1),
+    tck = -0.005, cex = 0.6)
+contour(x = unique(parameter_grid$beta0),
+        y = unique(parameter_grid$beta1),
+        z = log_likelihood,
+        levels = c(seq(-600, -180, by = 10), seq(-180, 0, by = 5)),
+        xlab = expression(widehat(beta)[0]),
+        ylab = expression(widehat(beta)[1]))
+@
+
+The same result can be obtained more quickly using the \texttt{glm()}
+function. It works similarly to the \texttt{lm()} we're already familiar with,
+except that we need to specify a distribution family and a so-called link function.
+As mentioned above, we consider the participants' choices to be Bernoulli
+distributed. The Bernoulli distribution is a more specific instance of the 
+binomial distribution, which we won't go into. The choice of the logit 
+link function is due to our working with log-odds.
+<<>>=
+tversky.glm <- glm(sure_choice ~ n.loss, data = d, 
+                   family = binomial(link = "logit"))
+summary(tversky.glm)$coefficients
+@
+
+The interpretation of the estimated model parameters is as follows:
+\begin{itemize}
+  \item The log-odds of a sure choice when the \texttt{n.loss} value is 0 are about $0.93$. This corresponds to odds of about 2.53 and to a probability of about $0.72$:
+<<>>=
+exp(0.93)
+plogis(0.93)
+@
+
+  \item The difference between the log-odds of a sure choice when the \texttt{n.loss} value is 1 compare to when it is 0 is $-2.2$. This corresponds
+  to an odds ratio of $0.11$:
+<<>>=
+exp(-2.2)
+@
+
+\item In order to obtain the estimated probability of a sure choice in the loss framing condition, we need to compute the log-odds of this
+first and then convert them into probabilities using the logistic function:
+<<>>=
+plogis(0.93 - 2.2)
+@
+\end{itemize}
+
+We had already computed all these numbers by hand. The added value of the model is that it produces estimated standard errors
+for the estimated $\beta$ parameters as well as (approximate) confidence intervals. Note that these are expressed in log-odds, too!
+<<>>=
+confint(tversky.glm)
+@
+We can straightforwardly express these confidence intervals on the odds scale by exponentiation:
+<<>>=
+exp(confint(tversky.glm))
+@
+That is, the 95\% interval for the estimated odds ratio of $0.11$ is about $[0.065, 0.184]$.
+While \emph{odds} can be converted into probabilities, odds \emph{ratios} cannot.
+If you want to estimate the effect of framing in percentage points and obtain a confidence interval
+that is also expressed in percentages, consider fitting a linear probability model.
+
+Generalised linear models can accommodate several predictors; see the exercises.
+
+\section{Continuous predictors}
+You can also fit continuous predictors in the generalised linear model. By way of example, we'll take a look
+at how well one of the participants in \citet{Vanhove2013b}
+translated 181 words from languages she did not know
+depending on the orthographic overlap (expressed on a scale from 0 to 10) between these 
+words and their translation.\footnote{If we wanted to model the data of all participants,
+we would need logistic mixed-effects models, which are well outside the scope
+of this lecture.}
+
+Let's read in the data and draw a scatterplot including a scatterplot smoother (Figure \ref{fig:continuouslogistic}). Even though 
+this smoother doesn't take into account that the data are binary (notice how it extends beyond the $[0,1]$ interval),
+it highlight a monotonous association between orthographic overlap and the participant's translation success.
+<<warning = FALSE, message = FALSE, fig.width = 4, fig.height = 2, out.width = "0.5\\textwidth", fig.cap = "There seems to be a monotonous relationship between the degree of overlap and whether the participant correctly translated the word. Note, though, that scatterplot smoother extends beyond the $[0,1]$ interval on the $y$ axis.\\label{fig:continuouslogistic}">>=
+library(here)
+d <- read_csv(here("data", "VanhoveBerthele2013_oneparticipant.csv"))
+
+ggplot(data = d,
+       aes(x = Overlap,
+           y = Correct)) +
+  geom_point(shape = 1,
+             # vertical jittering to better show the data points
+             position = position_jitter(width = 0, height = 0.02)) +
+  # scatterplot smoother without confidence band
+  geom_smooth(se = FALSE)
+@
+
+We can straightforwardly fit these data in a logistic model:
+<<>>=
+translation.glm <- glm(Correct ~ Overlap, data = d,
+                       family = binomial(link = "logit"))
+summary(translation.glm)$coefficients
+@
+Other than that the estimates are in log-odds, there is nothing new here:
+\begin{itemize}
+  \item The \texttt{(Intercept)} estimates the log-odds of a correct
+  translation if the degree of orthographic \texttt{Overlap} is 0.
+  Expressed in odds, there is a 0.037--to--1 chance of a correct translation
+  for words with this little overlap; or about a probability of $0.035$.
+<<>>=
+exp(-3.31)
+plogis(-3.31)
+@
+  Note that there are no words with 0 overlap in this dataset.
+  If we wanted to, we could centre the overlap variable so that the 
+  intercept estimate becomes more informative.
+  
+  \item The odds ratio of a correct translation for words with an orthographic
+  overlap of 1 vs.\ for words with an orthographic overlap of 0 is about 1.8.
+  That is, the odds of correctly translating a word with an orthographic
+  overlap of 1 are estimated to be about 1.8 as large as those of correctly
+  translating a word with an orthographic overlap of 0.
+<<>>=
+exp(0.59)
+@
+
+  \item To obtain the estimated probability of correctly translating a word
+  given its overlap, first compute the relevant log-odds and then convert
+  them to the probability scale. For instance, the estimated probability of
+  correctly translating a word with an orthographic overlap of 7.23 is about 73\%.
+<<>>=
+plogis(-3.313 + 0.594*7.23)
+@
+\end{itemize}
+
+To wrap off, let's draw a plot that shows how, according to the model,
+the success probability varies with the degree of orthographic overlap
+(Figure \ref{fig:modelfit}). Note that the plotted curve isn't straight.
+This is because we modelled the data linearly in log-odds space;
+by converting the result back to probability space via the logistic function,
+the trend line becomes nonlinear. That is, we could not \emph{not} have
+found a nonlinear trend line. A full-fledged tutorial on drawing
+trend lines based on models is available from \url{https://janhove.github.io/visualise_uncertainty/}.
+<<warning = FALSE, message = FALSE, fig.width = 4, fig.height = 2, out.width = "0.5\\textwidth", fig.cap = "The same data, but this time the trend line is based on our logistic model.\\label{fig:modelfit}">>=
+# quick function for computing the probabilities
+fnc <- function(x, model) {
+  plogis(coef(model)[[1]] + coef(model)[[2]]*x)
+}
+
+ggplot(data = d,
+       aes(x = Overlap,
+           y = Correct)) +
+  geom_point(shape = 1,
+             position = position_jitter(width = 0, height = 0.02)) +
+  stat_function(fun = fnc, args = list(model = translation.glm))
+@
+
+
+
+\section*{Exercises}
+\citet{Keysar2012} extended the experiment by \citet{Tversky1981}
+by having some participants complete the experiment in their
+native language (English) and others in a foreign language they
+were learning (Japanese). They were interested in finding out whether the
+framing effect that \citet{Tversky1981} had observed was as pronounced
+when the participants deal with the dilemma in a foreign language as 
+it was in their native language. That is, they were interested in the
+interaction between framing and language.
+
+We read in the data and summarise it numerically:
+<<>>=
+d <- read_csv(here("data", "Keysar2012.csv"))
+d |> 
+  group_by(language, framing) |> 
+  summarise(
+    sure_choices = sum(sure_choice == 1),
+    unsure_choices = sum(sure_choice == 0)
+  )
+@
+
+\begin{enumerate}
+  \item (With R.) Create a dummy variable for \texttt{language}
+  that has the value 0 for English and 1 for Japanese.
+  Also create a dummy variable for \texttt{framing} that has the
+  value 0 for gain framing and 1 for loss framing. (That is, use treatment
+  coding.) Fit a logistic model with these dummy variables and their pointwise
+  product (interaction) as predictors.
+  
+  \item (Paper and pencil.) You should have obtained the following estimated
+  model parameters:
+<<echo = FALSE>>=
+d <- d |> 
+  mutate(n.language = ifelse(d$language == "English", 0, 1),
+         n.framing = ifelse(d$framing == "gain", 0, 1),
+         interaction = n.language*n.framing)
+keysar.glm <- glm(sure_choice ~ n.language + n.framing + interaction,
+                  data = d,
+                  family = binomial(link = "logit"))
+summary(keysar.glm)$coefficients
+@
+  \begin{enumerate}
+    \item Explain what each estimated model parameter means literally.
+    \item Based on these coefficients, compute the estimated probability that
+          a participant who read the dilemma in the loss-framing condition
+          and in English picks the sure option. Verify your answer using
+          the numerical summary above.
+          
+    \item Based on these coefficients, compute the estimated probability that
+          a participant who read the dilemma in the loss-framing condition
+          and in Japanese picks the sure option. Verify your answer using
+          the numerical summary above.
+          
+    \item Compute a 95\% confidence interval for the interaction parameter
+          and convert it to an odds ratio.
+          
+    \item How would you answer Keysar et al.'s research question?
+  \end{enumerate}
+
+
+\end{enumerate}
+
+
+\bibliographystyle{/home/jan/ownCloud/Documents/Literature/unified}
+\bibliography{/home/jan/ownCloud/Documents/Literature/bibliography}
+
+\end{document}

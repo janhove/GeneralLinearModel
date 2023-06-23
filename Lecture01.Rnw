@@ -1,0 +1,841 @@
+\documentclass{article}
+\usepackage[layout = a4paper]{geometry}
+
+\usepackage{parskip}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+\usepackage[sc]{mathpazo}
+\newcommand{\pr}{\,\textrm{pr}}
+\newcommand{\df}{\,\textrm{d}}
+\newcommand{\glm}{\textsc{glm}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% Abbildungen und Tabellen
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{booktabs}
+\usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+
+% Referenzen
+\usepackage[sort]{natbib}
+
+% Boxes
+\usepackage{framed}
+
+% Hyperlinks
+\usepackage{hyperref}
+\usepackage{varioref}
+
+\title{GLM -- Lecture 1\\Nuts and bolts}
+\author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
+
+\date{Ghent, 12--14 July 2023}
+
+% KNITR options -----------------------------------
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
+
+# set global chunk options
+opts_chunk$set(fig.path = 'figs/',
+               fig.align = 'center',
+               fig.show = 'hold',
+               fig.pos = "tp",
+               tidy = FALSE,
+               prompt = TRUE,
+               comment = '',
+               highlight = TRUE,
+               dev = 'cairo_pdf',
+               cache = FALSE,
+               fig.width = 5,
+               fig.height = 5,
+               message = FALSE,
+               warning = FALSE,
+               out.width = '.4\\textwidth')
+opts_knit$set(global.par = TRUE)
+
+options(formatR.arrow = TRUE,
+        width = 60, 
+        show.signif.stars = FALSE, 
+        tibble.print_max = 7,
+        tibble.print_min = 7,
+        digits = 5)
+
+set.seed(2023)
+@
+
+<<echo = FALSE>>=
+par(las = 1,
+    bty = "l",
+    mar = c(3,3,2,1),
+    mgp = c(2,.7, 0),
+    tck = -.01)
+@
+
+<<echo = FALSE>>=
+op <- par()
+@
+
+\begin{document}
+
+\maketitle
+
+\section*{Goal and overview}
+This module is devoted to the workhorse of
+quantitative data analysis: the
+\textbf{general linear model}. 
+This is a tool with which we can
+express how one or several \textbf{predictors}
+(or, indeed, none) are related to a single
+\textbf{outcome}. Commonly used techniques
+such as $t$-tests, analysis of variance
+(\textsc{anova}) as well as regression models
+are all instantiations of the \glm, so 
+a firm grasp of its underpinnings will stand you in good stead
+when learning how to analyse quantitative data.
+The expected outcomes for this module (allowing for some
+time to digest the module's contents after the summer school)
+are the following:
+\begin{itemize}
+  \item Students are able to explain the literal meaning of the parameter estimates
+        in the output of general linear models.
+  
+  \item They know how to obtain uncertainty estimates about
+        these parameter estimates under different sets of assumptions.
+        
+  \item They will always ask themselves whether the models they fit
+        are at all relevant to the task at hand.
+        
+  \item They know how to generate simulated data in R in order to help
+        them pick between alternative modelling strategies.
+\end{itemize}
+Time willing, we'll also take a look at the logistic model.
+
+\section*{Prerequisites}
+I used R version 4.3.0 when writing this script.
+I use the tidyverse package throughout
+(version 2.0.0) in order to draw graphs and work
+comfortably with data sets. Additionally, I use the
+\texttt{here()} function from the here package (version 1.0.1).
+
+If you want to use the exact same commands as in this script,
+you'll need to create a project in RStudio (File > New Project\dots).
+In your project directory, create a subdirectory named \texttt{data}.
+The datasets we'll be working with are available from the course module's
+website as well as from \url{https://github.com/janhove/GeneralLinearModel}.
+Put them in the \texttt{data} subdirectory.
+Next, create a subdirectory named \texttt{functions} and put the \texttt{scatterplot\_matrix.R} file in it.
+
+\section{Another look at the mean}
+\citet{DeKeyser2010} administered a 204-item 
+Hebrew grammaticality judgement task (\textsc{gjt})
+to 76 Russian speakers who had moved to Israel.
+The authors were interested in gauging the relationship
+between the participants' performance on the \textsc{gjt}
+and the age at which they had started to learn Hebrew
+(age of acquisition, \textsc{aoa}). We'll look at
+this relationship shortly. But first, we'll use their
+data set in order to introduce a few core concepts that
+we will make use of throughout this lecture series.
+
+{\bf Tip:} Don't type along or work in R as you're attending
+this lecture. Focus on the logic; it's best to work through the
+R code at your own pace.
+
+Let's load the tidyverse and here packages and read
+in the data set.\label{data:dekeyser} Incidentally, when you run these
+commands, you may see a few messages, but I opted
+not to print these in order to reduce the clutter.
+
+<<>>=
+library(tidyverse)
+library(here)
+d <- read_csv(here("data", "dekeyser2010.csv"))
+@
+
+Figure \ref{fig:dekeyser_dotplot} shows a basic dot plot 
+of the participants' \textsc{gjt} scores.
+<<fig.height = 8, fig.cap = "A dot plot of the participants' grammaticality judgement scores.\\label{fig:dekeyser_dotplot}">>=
+ggplot(data = d,
+       aes(x = GJT,
+           y = reorder(Participant, GJT))) +
+  geom_point() +
+  ylab("Participant ID")
+@
+
+Our first goal in this section is to describe these 76
+\textsc{gjt} values using a single number. While you
+different kinds of averages exist
+(arithmetic mean, median, trimmed mean, winsorised mean, etc.),
+let's pretend we don't know anything about those.
+Then, a promising plan of attack would be to partition the information in
+the data points into two parts:
+a systematic part that captures the communalities 
+between the data points, and an unsystematic part
+that captures the individual discrepancies between
+those communalities and the data points.
+That is, for each observation, we would have the
+following equation:
+\[
+  \textrm{a specific outcome} = \textrm{communality between all outcomes} + \textrm{some discrepancy}.
+\]
+This notation is a bit cumbersome, so let's use some shorthand:
+\begin{equation*}
+  y_i = \beta_0 + \varepsilon_i,
+\end{equation*}
+where $y_i$ is the $i$-th observation in the data set
+(here: $i = 1, 2, \dots, 76$),
+$\beta_0$ represents the communality between all 76 outcome values,
+and $\varepsilon_i$ expresses by how much the $i$-th observation
+deviates from this communality.
+The $\varepsilon_i$ values are referred to as the 
+\textbf{residuals} or the \textbf{error term}.
+We write $\beta_0$ instead of just $\beta$ because we'll
+be using more than one $\beta$ parameter shortly.
+We're usually more interested in the $\beta$s than in the 
+$\varepsilon$s.
+
+Since we don't have the entire population at our
+disposal, we can only \textbf{estimate} the $\beta$s based
+on our data set.
+We'll let $\widehat{\beta}_0$ denote our estimate of $\beta_0$.
+Since $\widehat{\beta}_0$ is merely an estimate,
+so, too, the values of $\varepsilon$ that we'll end up with
+will be estimates:
+\begin{equation}
+  y_i = \widehat{\beta}_0 + \widehat{\varepsilon}_i.\label{eq:glm}
+\end{equation}
+This is equivalent to
+\[
+ \widehat{\varepsilon}_i = y_i - \widehat{\beta}_0.
+\]
+
+\subsection{Obtaining parameter estimates}
+But how to compute $\widehat{\beta}_0$?
+Or put differently: How to estimate $\beta_0$?
+In principle, we could pick any value for
+$\widehat{\beta}_0$ and choose the $\widehat{\varepsilon}_i$
+values accordingly to make Equation \ref{eq:glm} hold.
+For instance, we could arbitrarily pick 
+$\widehat{\beta}_0 = 1823$.
+Since $y_1 = 151$, we could then pick $\widehat{\varepsilon}_1 = -1672$
+and we'd have $y_1 = 151 = 1823 - 1672$.
+Similarly, we could pick $\widehat{\varepsilon}_2, \dots, \widehat{\varepsilon}_{76}$ to accommodate our choice of $\widehat{\beta}_0$.
+
+Clearly, we need a more principled method for obtaining
+our parameter estimates. So what's the optimal principled way
+for obtaining parameter estimates? The hardly surprising answer
+is that this depends on what you mean by `optimal'.
+
+One sensible way of defining `optimal' is that $\beta_0$ needs to
+be estimated in such a way that the sum of the absolute
+residuals (i.e., $\sum_{i = 1}^n |\widehat{\varepsilon}_i|$) is as small
+as possible; this is known as the {\bf method of least absolute deviations}.
+If we pick $\widehat{\beta}_0 = 135$, then
+the sum of the absolute residuals equals 1993:
+<<>>=
+sum(abs(d$GJT - 135))
+@
+If we pick $\widehat{\beta}_0 = 148$, the sum of the absolute
+residuals equals 1799:
+<<>>=
+sum(abs(d$GJT - 148))
+@
+So by our definition of `optimal', 
+$\widehat{\beta}_0 = 148$
+is a better choice than
+$\widehat{\beta}_0 = 135$.
+We can try out a bunch of possible values for $\widehat{\beta}_0$ and see 
+which one minimises the sum of the absolute residuals.
+The left graph of Figure \ref{fig:optimisation}
+shows exactly this. Note that for the \textsc{gjt}
+data, the sum of absolute residuals is minimised for
+$\widehat{\beta}_0$ values between 150 and 151.
+It's not a coincidence that the median of the 
+\textsc{gjt} values is 150.5:
+if we estimate $\widehat{\beta}_0$ by minimising
+the sum of the absolute residuals, then we obtain
+the sample median \citep{Schwertman1990}!
+<<echo = FALSE, fig.cap = "{\\it Left:} If we estimate the parameter so as to minimise the sum of the absolute deviations, we obtain the sample median. {\\it Right:} If we estimate the parameter so as to minimise the sum of the squared deviations, we obtain the sample mean.\\label{fig:optimisation}", echo = FALSE, fig.width = 8, fig.height = 2.3, out.width=".9\\textwidth">>=
+sum_of_squares <- function(x, m) {
+  sum((x - m)^2)
+}
+df <- data.frame(beta0 = seq(145, 155, by = 0.01))
+df$SS <- NA
+for (i in 1:nrow(df)) {
+  df$SS[i] <- sum_of_squares(x = d$GJT, m = df$beta0[i])
+}
+p1 <- ggplot(df,
+       aes(x = beta0, y = SS)) +
+  geom_line() +
+  xlab(expression(widehat(beta[0]))) +
+  ylab(expression(paste(Sigma[{i==1}]^n, widehat(epsilon)[i]^2))) +
+  ggtitle("Least squares")
+
+sum_of_deviations <- function(x, m) {
+  sum(abs(x - m))
+}
+
+df$SD <- NA
+for (i in 1:nrow(df)) {
+  df$SD[i] <- sum_of_deviations(x = d$GJT, m = df$beta0[i])
+}
+
+p2 <- ggplot(df,
+       aes(x = beta0, y = SD)) +
+  geom_line() +
+  xlab(expression(widehat(beta[0]))) +
+  ylab(expression(paste(Sigma[{i==1}]^n, abs(widehat(epsilon)[i])))) +
+  ggtitle("Least absolute deviations")
+
+gridExtra::grid.arrange(p2, p1, ncol = 2)
+@
+
+Another sensible definition of `optimal' is that $\beta_0$ needs to
+be estimated in such a way that the sum of the squared
+residuals (i.e., $\sum_{i = 1}^n \widehat{\varepsilon}_i^2$) is as small
+as possible. This is the {\bf method of least squares}.
+As shown in the right graph of Figure \ref{fig:optimisation},
+the optimal $\widehat{\beta}_0$ value when using least squares
+is about 150.8 for the \textsc{gjt} data.
+The mean of the \textsc{gjt} data is about 150.8, too, and 
+of course, this isn't a coincidence:
+When we estimate $\beta_0$ using least squares, we obtain
+the sample mean! You can prove this by finding the value for
+$\widehat{\beta}_0$ for which the derivative of
+the sum of squares, seen as a function of $\widehat{\beta}_0$,
+equals 0: 
+\[
+\frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0}\sum_{i = 1}^n (y_i - \widehat{\beta}_0)^2  \overset{!}{=} 0.
+\]
+This only requires secondary school mathematics.
+% The proof is in the footnote.\footnote{\begin{proof}
+% We wish to find $\widehat{\beta}_0$ so as to minimise the expression $\sum_{i = 1}^n (y_i - \widehat{\beta}_0)^2$.
+% This expression is strictly convex in $\widehat{\beta}_0$
+% and so any local minimum is also a global minimum.
+% It is also differentiable everywhere.
+% From secondary school, we now that the derivative of a differentiable function
+% is zero where the function reaches its local extrema.
+% So let's take the derivative, set it to zero,
+% and solve for $\widehat{\beta}_0$:
+% \begin{align*}
+%   \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0}\sum_{i = 1}^n (y_i - \widehat{\beta}_0)^2
+%   &= \sum_{i = 1}^n \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} (y_i -\widehat{\beta}_0)^2 & [\textrm{The derivative of a sum is the sum of the derivatives.}] \\
+%   &= \sum_{i = 1}^n \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0}\left(y_i^2 - 2y_i\widehat{\beta}_0 + \widehat{\beta}_0^2\right) & [\textrm{Unpacking the square of a difference.}] \\
+%   &= \sum_{i = 1}^n \left(\frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} y_i^2 -  \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} 2y_i\widehat{\beta}_0 + \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} \widehat{\beta}_0^2\right)& [\textrm{The derivative of a sum is the sum of the derivatives.}] \\
+%   &= \sum_{i = 1}^n \left(0 - 2y_i + 2\widehat{\beta}_0\right) & [\textrm{Basic derivatives.}] \\
+%   &= -\left(2 \sum_{i=1}^n y_i\right) + 2n\widehat{\beta}_0.
+% \end{align*}
+% The above is equal to zero if and only if
+% $2\sum_{i=1}^n y_i = 2n\widehat{\beta}_0$. Dividing both sides by $2n$, we obtain
+% \[
+%   \widehat{\beta}_0 = \frac{1}{n}\sum_{i=1}^n y_i,
+% \]
+% that is, the arithmetic mean of the $y_i$ values.
+% \end{proof}}
+
+Computationally, the method of least squares is the easiest to work with.
+Unless otherwise mentioned, the parameter estimates in the general linear model
+are obtained using this method (`ordinary least squares', or \textsc{ols}).
+
+\subsection{General linear models in R}
+We can use the \texttt{lm()} function to build linear models
+whose parameters are estimated using least squares.
+This function takes a formula in which the outcome is listed
+in front of the tilde and the predictors are listed after it.
+In the present case, we don't have any predictors, so we just
+write a 1 instead:
+<<>>=
+mod.lm <- lm(GJT ~ 1, data = d)
+@
+The estimated parameters can be printed by typing the name
+of the model:
+<<>>=
+mod.lm
+@
+A more compact overview can be obtained using \texttt{coef()}:
+<<>>=
+coef(mod.lm)
+@
+Don't be confused by differences in the formatting (151 vs. 150.78).
+This is merely a matter of rounding the output;
+the underlying representation of these estimates is the same.
+
+We can obtain the residuals, that is, the $\widehat{\varepsilon}_i$ values as follows:
+<<>>=
+resid(mod.lm)
+@
+
+If we subtract the residuals from the observed values,
+we obtain the (so-called) \textbf{predicted values}. 
+(A term I'm not entirely chuffed with.)
+Since
+\[
+y_i - \widehat{\varepsilon}_i = y_i - (y_i - \widehat{\beta}_0) = \widehat{\beta}_0,
+\]
+this results in 76 repetitions of $\widehat{\beta}_0$:
+<<results = FALSE>>=
+# output not shown:
+d$GJT - resid(mod.lm)
+# alternatively (output not shown):
+predict(mod.lm)
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Quantifying uncertainty}
+What we've done so far is \emph{estimate}
+the $\beta_0$ parameter that we're interested in.
+While we have a principled approach for obtaining
+this estimate, the resulting value will depend
+on the data that we've collected. Usually,
+the estimate is based only on a sample from a
+larger population. As a result, our estimate
+of $\beta_0$ won't exactly coincide with the true
+but unknown value of $\beta_0$, that is,
+there is some inherent uncertainty about our estimate.
+By making some assumptions and leveraging the
+information in the data, we can, however,
+estimate the extent of this uncertainty.
+
+The assumption we'll make is that the residuals, i.e., the $\varepsilon_i$
+values, 
+be distributed \textbf{identically}
+and \textbf{independently}.
+This assumption is often abbreviated as the i.i.d.\ assumption
+(for `identically and independently distributed').
+
+The `identical' part of this assumption
+is also referred to as the homoskedasticity
+assumption.
+It means that we assume that there exists a single
+distribution from which all residuals were drawn, that is,
+\[
+  \varepsilon_i \sim \textrm{Some distribution}
+\]
+for $i = 1, \dots, n$.
+We don't make any further assumptions about this
+distribution yet; we're merely assuming that it
+is not the case that some residuals are drawn
+from, say, a uniform distribution spanning 
+from $-6$ to $6$ whereas some other residuals
+are drawn from a normal distribution with
+mean 0 and a standard deviation of $3$.
+
+The independence assumption entails that
+if we know the value of one residual, then 
+this doesn't provide us with any more information
+about any of the remaining residuals.\footnote{The formal definition
+of stochastic independence is more involved, but essentially boils down to this.}
+To make this more concrete, consider the following example.
+Let's say you wanted to estimate the average length of the
+[u] vowel in the Ghent vernacular. To this end, you have 
+25 informants from Ghent read out 50 words containing [u].
+It is conceivable that some informants tend to produce
+longer [u] sounds than others, that is, once you obtain
+a positive residual for a single production from a single speaker,
+chances are the other productions from this speaker will also
+have positive residuals. That is, once you've learnt something
+about the value of one specific residual, you can make more informed guesses about
+the values of some other residuals, too.
+Similarly, it is conceivable
+that [u] sounds tend to be longer in some words or phonological contexts
+than others. If so, the residual for a single word produced by a single
+speaker may give you some clues as to the residuals for other productions
+of the same word. In sum, the $25 \times 50 = 1250$ data points that this
+study would produce would violate the independence assumption if we were
+to analyse them using the method discussed above.
+
+Problems with dependencies between residuals can be tackled in a number of ways,
+with one popular approach since 2008 or so being the use of mixed-effects
+models. These are beyond the scope of this module, but see Module 9.
+
+We'll have more to say about modelling assumptions later.
+Let's now turn to the matter of estimating the extent of the uncertainty
+in our parameter estimates.\footnote{We \emph{could} go on and estimate
+the uncertainty about our uncertainty estimates, but no-one does so and
+let's not go there.}
+
+\subsection{The semi-parametric bootstrap}\label{sec:semiparametric}
+We're currently assuming that the residuals be identically and independently
+distributed. To make some progress, we need to add a further assumption
+about the shape of the distribution from which the residuals were drawn.
+In the present subsection, we'll assume that the estimated residuals we have
+give us a reasonable approximation of the distribution of the residuals.
+Then, we can use the bootstrap technique \citep{Efron1979,Efron1993,Hesterberg2015} 
+to quantify the uncertainty in our parameter estimates.
+While a couple of flavours of the bootstrap exist, we'll consider the
+semi-parametric version, which goes as follows:
+\begin{enumerate}
+  \item Compute $\widehat{\beta}_0$ and in doing so obtain 
+  a vector $\widehat{\varepsilon}$ containing
+  values $\widehat{\varepsilon}_1$ through $\widehat{\varepsilon}_n$.
+  
+  \item Sample with replacement an $n$-valued vector
+  from $\widehat{\varepsilon}$ and label it $\widehat{\varepsilon}^*$.
+  The vector $\widehat{\varepsilon}^*$ may contain some 
+  values from $\widehat{\varepsilon}$ several times and others not at all.
+  
+  \item Create a new vector of outcome values: $y_i^* = \widehat{\beta}_0 + \widehat{\varepsilon}_i^*$.
+  
+  \item Estimate $\beta_0$ again but this time using $y^*$. 
+  Call the new estimate $\widehat{\beta}_0^*$.
+  
+  \item Do steps 2--4 a couple of thousand times and in doing so
+  obtain a distribution of bootstrapped $\beta_0$ estimates.
+\end{enumerate}
+
+In R:
+<<cache = TRUE>>=
+# Step 1 (model already fitted)
+d$Prediction <- predict(mod.lm)
+d$Residual <- resid(mod.lm)
+
+n_bootstrap <- 20000
+bs_b0 <- vector(length = n_bootstrap)
+
+for (i in 1:n_bootstrap) {
+  # Step 2 + Step 3 
+  d <- d |> 
+    mutate(bs_outcome = Prediction + sample(Residual, replace = TRUE))
+  # Step 4
+  bs_mod <- lm(bs_outcome ~ 1, data = d)
+  bs_b0[[i]] <- coef(bs_mod)[[1]]
+}
+@
+
+A quick no-frills histogram of the $\widehat{\beta}_0^*$ values
+shows that these approximately form a normal distribution (Figure \ref{fig:histbootstrap}).
+<<fig.cap = "A quick histogram of the bootstrapped $\\widehat{\\beta}_0$ estimates.\\label{fig:histbootstrap}">>=
+hist(bs_b0)
+@
+
+At this point, let's go over some {\bf basic facts of probability theory}.
+First, if $n$ observations are drawn randomly from a distribution with mean $\mu$,
+then the expected value of the mean of these $n$ observations equals exactly $\mu$.
+Put differently, if we draw lots of random samples from some distribution, then
+the mean of the sample means will equal the mean of the distribution from which 
+the samples were drawn.
+
+Second, if these $n$ observations were not only drawn randomly but also independently
+from a distribution and this distribution has variance $\sigma^2 < \infty$, 
+then the mean of the $n$ observations will fall in a distribution with variance $\sigma^2/n$.
+The square root of this variance, i.e., $\sigma / \sqrt{n}$, is referred to as the
+{\bf standard error} of the mean.
+
+Third, if the observations are drawn randomly and independently from a distribution with finite variance and the sample size $n$ tends to infinity, then the distribution of the sample means
+will converge to a normal distribution. As per the first and second point, this normal
+distribution has the same mean as the distribution from which the observations were drawn
+and variance $\sigma^2/n$. This fact is known as the 
+{\bf central limit theorem} (\textsc{clt}).
+
+What Figure \ref{fig:histbootstrap} essentially shows us is an estimate of what
+the sampling distribution of the $\widehat{\beta}_0$ estimate looks like, subject
+to the assumptions we've made in the semi-parametric bootstrap. The fact that
+this sampling distribution looks approximately normal shows the central limit 
+theorem at work.
+The standard deviation of the bootstrapped $\widehat{\beta}_0^*$ values provides us with
+an estimate of the {\bf standard error}, i.e., the standard deviation
+of the sampling distribution of the parameter estimate. (Note that
+if you run the same commands, the outcome will be slightly different
+due to the randomness in step 2.)
+<<>>=
+sd(bs_b0)
+@
+We could also use the second fact discussed above to estimate the standard error,
+plugging in the sample standard deviation for the unknown population standard 
+deviation ($\widehat{SE} = s/\sqrt{n}$). Both approaches yield essentially the
+same outcome:
+<<>>=
+sd(d$GJT) / sqrt(nrow(d))
+@
+
+A 95\% confidence interval around the parameter estimate can be constructed
+by looking up the 2.5th and 97.5th percentile of the distribution of $\widehat{\beta}_0^*$
+values:
+<<>>=
+quantile(bs_b0, probs = c(0.025, 0.975))
+@
+Alternatively, we could use the central limit theorem: look up the 
+2.5th and 97.5th percentiles of the standard normal distribution
+(with \texttt{qnorm()}), multiply these by the estimated standard error, and 
+translate the results by the parameter estimate:
+<<>>=
+coef(mod.lm)[[1]] + qnorm(c(0.025, 0.975)) * sd(d$GJT) / sqrt(nrow(d))
+@
+
+In this example, the standard error estimates and confidence intervals
+produced by the bootstrap and the central limit theorem are essentially the
+same. This is a consequence of the 
+distribution of the $\widehat{\beta}_0^*$ values being normal.
+But this distribution doesn't \emph{have} to be normal. Indeed, what's nice
+about the bootstrap is that it can be used even when it is doubtful
+that the sampling distribution of the parameter estimate is approximately 
+normal.
+
+\subsection{The parametric bootstrap}
+In the previous section, we assumed that the distribution of the estimated
+residuals gives us a reasonable approximation of the distribution from
+which the residuals were drawn. Alternatively, we could make a different
+assumption about the residual distribution, for instance, that this
+distribution is normal. Note the difference between this assumption and the assumption
+we made earlier. Now we're assuming that the residuals are randomly and independently
+drawn from a normal distribution; earlier, we assumed that the residuals were randomly
+and independently sampled from \emph{some} distribution, and it was the (estimated) 
+sampling distribution of $\widehat{\beta}_0$ that \emph{happened} to be roughly 
+normally distributed.
+
+Normal distributions are defined by two parameters:
+their mean $\mu$ and their variance $\sigma_{\varepsilon}^2$
+(or their standard deviation $\sigma_{\varepsilon}$).
+Since $\widehat{\beta}_0$ is equal to the same mean, the mean of the residuals
+is always equal to 0.\footnote{The mean of the residuals is always equal to zero:
+\[
+  \frac{1}{n}\sum_{i = 1}^n \widehat{\varepsilon}_i
+  = \frac{1}{n}\sum_{i = 1}^n (y_i - \widehat{\beta}_0)
+  = \frac{1}{n}\left(\sum_{i = 1}^n y_i\right) - n\cdot\frac{1}{n}\widehat{\beta}_0
+  = \widehat{\beta}_0 - \widehat{\beta}_0 = 0.
+\]
+}
+We can write down our assumptions like so:
+\begin{align*}
+  y_i &= \beta_0 + \varepsilon_i, \\
+  \varepsilon_i &\sim \textrm{Normal}(0, \sigma_{\varepsilon}^2),
+\end{align*}
+for $i = 1, 2, \dots, n$.
+The standard deviation of residual distribution can be estimated 
+from the estimated residuals like so:
+\[
+  \widehat{\sigma}_{\varepsilon} = \sqrt{\frac{1}{n - p} \sum_{i = 1}^n \widehat{\varepsilon}^2_i},
+\]
+where $p$ is the number of estimated $\beta$ parameters (currently: $p = 1$).
+This estimate can be obtained using
+<<>>=
+sigma(mod.lm)
+@
+
+The parametric bootstrap now proceeds similarly to the semi-parametric bootstrap.
+But instead of sampling the $\widehat{\varepsilon}^*$ values with replacement
+from $\widehat{\varepsilon}$, we sample them from a normal distribution
+with mean 0 and standard deviation $\widehat{\sigma}_{\varepsilon}$:
+<<cache = TRUE>>=
+sigma_mod.lm <- sigma(mod.lm)
+
+n_bootstrap <- 20000
+bs_b0 <- vector(length = n_bootstrap)
+
+for (i in 1:n_bootstrap) {
+  # Step 2 + Step 3 
+  d <- d |> 
+    mutate(bs_outcome = Prediction + rnorm(n = nrow(d), sd = sigma_mod.lm))
+  # Step 4
+  bs_mod <- lm(bs_outcome ~ 1, data = d)
+  bs_b0[[i]] <- coef(bs_mod)[[1]]
+}
+@
+
+We can again draw a histogram, which would again show that the
+$\widehat{\beta}_0^*$ values are normally distributed:
+<<eval = FALSE>>=
+# not shown
+hist(bs_b0)
+@
+The standard error estimate and confidence intervals are essentially
+the same as previously:
+<<>>=
+sd(bs_b0)
+quantile(bs_b0, c(0.025, 0.975))
+@
+
+While we assumed that the residual distribution was normal here,
+we can also apply the parametric bootstrap when making different assumptions
+about the residual distribution. We'd just have to plug in the corresponding
+function in step 2.
+
+\subsection{t-distributions}
+If we're happy to assume that the residuals are drawn from a normal distribution,
+we can compute the standard error estimates and confidence intervals directly,
+without the bootstrap. The formulae aren't too informative; let's skip straight
+to how to obtain the results in R:
+<<>>=
+summary(mod.lm)
+@
+For reasons that'll become clear shortly,
+the $\beta_0$ estimate is referred to as \texttt{(Intercept)}.
+The column with the \texttt{Std.\ Error} lists the estimated standard
+errors; the \texttt{t value} and \texttt{Pr(>|t|)} values correspond
+to the $t$- and $p$-values you know from Module 1.
+
+95\% confidence intervals can easily be obtained using \texttt{confint()}:
+<<>>=
+confint(mod.lm)
+@
+
+Note that all these results correspond exactly to those obtained
+when running a one-sample $t$-test on the data:
+<<>>=
+t.test(d$GJT)
+@
+Indeed, the one-sample $t$-test is an instantiation of the general linear model.
+
+\subsection{Excursion: Maximum likelihood estimation}
+There's an alternative method for obtaining parameter estimates:
+maximum likelihood estimation (\textsc{mle}). Feel free to skip this section
+and come back to it when you encounter this term on your statistical journey.
+
+Let us assume that the data $y_1, \dots, y_n$ are i.i.d.\ from a normal
+distribution with mean $\mu$ and variance $\sigma^2$. The probability density
+of such a normal distribution is given by
+\[
+  p(y_i) = \frac{1}{\sqrt{2\pi} \sigma}\exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right).
+\]
+Since the data are assumed to be i.i.d., the density of their joint distribution
+is given by the product of their individual densities. (This, technically,
+is what it means for data to be independent.) That is,
+\[
+  p(y_1, \dots, y_n) = \prod_{i = 1}^n \frac{1}{\sqrt{2\pi} \sigma}\exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right).
+\]
+When this expression is viewed as a function of $\mu$, it is known as the
+{\bf likelihood function} of the data. A sensible way of estimating $\mu$
+from the data is to pick the value for $\widehat{\mu}$ that maximises this
+likelihood function. The product makes this a bit cumbersome, but we can
+exploit the properties of logarithms to rewrite this product as a sum:
+You may remember from secondary school that $\log ab = \log a + \log b$.
+Since the logarithm is strictly monotonously increasing, the choice
+of $\widehat{\mu}$ that maximises the log-likelihood also maximises
+the likelihood. In sum, we choose $\widehat{\mu}$ as follows:
+\begin{align*}
+  \widehat{\mu}
+  &= \argmax_{\mu} \left(\prod_{i = 1}^n \frac{1}{\sqrt{2\pi} \sigma}\exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right) \\
+  &= \argmax_{\mu} \left(\prod_{i = 1}^n \exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right) \\
+  &= \argmax_{\mu} \log\left(\prod_{i = 1}^n \exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right) \\
+  &= \argmax_{\mu} \sum_{i = 1}^n \log\left(\exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right) \\
+  &= \argmax_{\mu} - \sum_{i = 1}^n \frac{(y_i - \mu)^2}{2\sigma^2} \\
+  &= \argmax_{\mu} -\sum_{i = 1}^n (y_i - \mu)^2 \\
+  &= \argmin_{\mu} \sum_{i = 1}^n (y_i - \mu)^2.
+\end{align*}
+
+
+(Line 1 to 2: The scaling factor doesn't matter, so drop it.
+Line 2 to 3: Take the logarithm. 
+Line 3 to 4: $\log ab = \log a + \log b$.
+Line 4 to 5: $\log(\exp(x)) = x$.
+Line 5 to 6: The factor $1/(2\sigma^2)$ is just a scaling factor and doesn't matter.
+Line 6 to 7: Maximising $-x$ is the same as minimising $x$.)
+
+We end up with exactly the same optimisation problem as when minimising
+the sum of squared residuals! So the solution is the same:
+\[
+  \widehat{\mu} = \frac{1}{n} \sum_{i = 1}^n y_i.
+\]
+
+In conclusion, when working with the general linear model,
+we obtain the same $\beta$ estimates regardless of whether we're
+using the method of least squares (without making any assumptions about
+the data) or using maximum likelihood estimation under the assumption
+of i.i.d.\ normal data. For some generalisations of the general
+linear model (creatively called the \emph{generalised} linear model),
+the method of least squares isn't available or attractive, and parameter
+estimates are usually obtained using some version of maximum likelihood
+estimation.
+
+\section{Assumptions and relevance, Episode 1}
+Model assumptions enter into the data analysis at some point,
+be it when estimating the model parameters (using maximum likelihood)
+or when estimating the uncertainty about these estimates.
+But how important are these assumptions about independence, homoskedasticity
+and -- when using $t$-distributions or maximum likelihood -- normality?
+
+The independence assumption is essential. If it is violated, the uncertainty
+about the parameter estimates may be massively underestimated using the
+methods covered in this lecture series. Deciding whether this assumption is
+justified typically requires knowledge about how the data were collected.
+
+The homoskedasticity assumption isn't too relevant just yet, but we will
+come back to it in the next lectures.
+
+The normality assumption is typically the least important of the three.
+In fact, in our running example, we \emph{know} that this assumption is violated:
+Normal distributions theoretically range from $-\infty$ to $+\infty$,
+but our data are known to be constrained to the interval $[0, 204]$.
+Moreover, normal data are infinitely fine-grained, whereas our data consists
+of integers. That said, we observed that we obtained pretty much the same
+uncertainty measures when assuming normality as when using the semi-parametric
+bootstrap, which does not assume normality. This is quite common and can
+be attributed to the workings of the central limit theorem.
+
+In my view, you shouldn't worry too much about the normality and homoskedasticity
+assumptions. What you should ask yourself instead, however, is whether the model
+you want to fit and the statistics you want to compute are at all {\bf relevant}
+in the context of your study and in light of your data. Consider the data in
+Figure \ref{fig:skewed}. It seems unlikely that the residuals were drawn from a normal
+distribution. But rather than fit these data in a general linear model and then
+worry about the normality violation, you ought to ask yourself whether 
+whatever research question you have can sensibly be answered in terms of the
+mean of these data. For this example, this seems unlikely, and a more pressing
+question presents itself: Where does the outlier come from?
+If, by contrast, you do think that the mean is a sensible statistic to
+compute in light of your research question and your data, then normality violations
+are unlikely to affect your results -- and you can always verify those
+results using the semi-parametric bootstrap.
+Drawing plots of your data, both for yourself and for your readership, is essential
+in ensuring that your numeric analyses are relevant to the research questions
+at hand.
+
+<<echo = FALSE, fig.cap = "You probably \\emph{could} fit these data in a general linear model. But the mean (dashed vertical line) just isn't an informative measure of these data's central tendency. So why bother?\\label{fig:skewed}">>=
+set.seed(2023-02-14)
+x <- rf(20, 1, 1)
+dotchart(sort(x), xlab = "x")
+abline(v = mean(x), lty = 2)
+@
+
+\subsection*{Summary}
+\begin{itemize}
+  \item We can think of our individual outcome data as being composed
+  of some communality between all our outcome data and individual
+  discrepancies.
+  
+  \item It is usually the communality that is of interest.
+  This can be estimated using the discrepancies (residuals)
+  and some optimisation criterion.
+
+  \item Unless otherwise mentioned, the method of least squares is
+  the optimisation criterion used. When working with a single 
+  outcome and no predictors, this yields the sample mean.
+  But other optimisation criteria do exist.
+  
+  \item We can estimate the uncertainty in the parameter estimates
+  using some version of the bootstrap or by making further assumptions.
+  
+  \item Rather than worry about normality, ask yourself whether
+  what you want to compute is actually relevant in light of your research
+  questions and your data.
+\end{itemize}
+
+\subsection*{Exercises}
+\begin{enumerate}
+  \item (Paper and pencil.) The distribution generated by throws of a fair six-sided dice
+  has mean $\mu = 3.5$ and variance of $\sigma^2 = 2.91\overline{6}$.
+  You throw the dice 9 times and you jot down the average number of pips observed.
+  The throws can be assumed to be independent. What do you know about the 
+  sampling distribution of the average number of pips observed?
+  
+  \item (With R.) Read in the DeKeyser et al.\ data as explained in Section \ref{data:dekeyser},
+  fit the model as we did above,
+  and run the semi-parametric bootstrap using the code provided in Section \ref{sec:semiparametric};
+  you can set the \texttt{n\_bootstrap} value to 2000 instead of 20000 to speed up the computation.
+  Compute 90\% confidence intervals for the $\widehat{\beta}_0$ estimate using
+  both the bootstrapped sampling distribution and the central limit theorem.
+\end{enumerate}
+
+\bibliographystyle{/home/jan/ownCloud/Documents/Literature/unified}
+\bibliography{/home/jan/ownCloud/Documents/Literature/bibliography}
+
+\end{document}
