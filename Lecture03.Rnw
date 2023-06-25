@@ -33,7 +33,7 @@
 \usepackage{hyperref}
 \usepackage{varioref}
 
-\title{GLM -- Lecture 3\\Group differences}
+\title{The general linear model -- Lecture 3\\Group differences}
 \author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
 
 \date{Ghent, 12--14 July 2023}
@@ -93,7 +93,7 @@ deal with differences between three or more groups. Finally, we'll discuss
 how data from factorial designs can be analysed.
 
 \section{Differences between two groups}
-Our first example in this lecture stems from the field of social psychology.
+Our first example in this lecture is from the field of social psychology.
 \citet{Caruso2013} reported that American participants agree more strongly
 with statements that justify the US social system if they are reminded
 of money. Their participants responded to eight statements such as
@@ -135,8 +135,8 @@ p_boxplot
 <<fig.width = 2*2.2, fig.height = 2*2.1, fig.cap = "The same data but with the individual data points overlaid.\\label{fig:boxplotklein2}">>=
 # boxplots with individual data points added
 p_boxplotdeluxe <- ggplot(data = d,
-                    aes(x = MoneyGroup,
-                        y = Sysjust)) +
+                          aes(x = MoneyGroup,
+                              y = Sysjust)) +
   # don't plot outliers twice
   geom_boxplot(outlier.shape = NA) +
   geom_point(shape = 1,
@@ -155,7 +155,7 @@ as individual data points. Moreover, the data points are jittered vertically so 
 they don't overlap as much.
 
 Using the functions provided by the tidyverse packages, we can easily
-construct a table with the basic descriptive statistics for each of the
+construct a table with the basic descriptive statistics for both of the
 experiment's conditions.
 <<>>=
 d |> 
@@ -257,18 +257,18 @@ and
 \]
 The difference between these estimates is exactly the parameter estimate for the slope:
 \[
-\widehat{y}_{\textrm{treatment}} - \widehat{y}_{\textrm{control}} = 3.53 - 0.006\cdot 0.5 - 3.53 - 0.006\cdot 0.5 = 0.006.
+\widehat{y}_{\textrm{treatment}} - \widehat{y}_{\textrm{control}} = (3.53 - 0.006\cdot 0.5) - (3.53 + 0.006\cdot 0.5) = 0.006.
 \]
 As for the interpretation of the intercept estimate, 
 consider the following:
 \begin{align*}
   \widehat{\beta}_0
   &= \frac{\widehat{\beta}_0 + \widehat{\beta}_0}{2} \\
-  &= \frac{(\widehat{\beta}_0 + 0.5\widehat{\beta}_1) + (\widehat{\beta}_0 - 0.5\widehat{\beta}_1)}{2} \\
+  &= \frac{(\widehat{\beta}_0 + \widehat{\beta}_1\cdot 0.5) + (\widehat{\beta}_0 - \widehat{\beta}_1 \cdot 0.5)}{2} \\
   &=  \frac{\widehat{y}_{\textrm{treatment}} +  \widehat{y}_{\textrm{control}}}{2}.
 \end{align*}
 That is, when using sum-coding, the estimated intercept corresponds
-to the average of the conditional means for both groups.
+to the average of the conditional means for both groups, that is, to the {\bf grand mean}.
 
 \begin{framed}
   {\bf Alabama first.}
@@ -294,7 +294,7 @@ that speakers of a Belgian Dutch dialect don't rely on their
 own dialect when assigning gender to German nouns because they
 lack metalinguistic knowledge about grammatical gender in their
 own dialect.
-To this end, I devised an admittedly small experiment with three conditions:
+To this end, I devised a small experiment with three conditions:
 \begin{itemize}
   \item Strategy: In the first condition, participants were furnished
   with a simple strategy for figuring out the grammatical
@@ -366,10 +366,12 @@ mod.lm
 The interpretation of these parameter estimates is analogous to what we discussed
 in the previous section. The intercept estimate is the conditional mean
 for the group that was coded as 0 on both dummy variables, i.e., the no information
-condition. The estimate for strategy is the difference between the estimated
-conditional means for the strategy and the no information conditions;
-the estimate for information is the difference between the estimated conditional
-means for the information and the no information conditions. You can verify
+condition. 
+The estimate for information is the difference between the estimated conditional
+means for the information and the no information conditions;
+the estimate for strategy is the difference between the estimated
+conditional means for the strategy and the no information conditions.
+You can verify
 this by reconstructing the condition means in the descriptive statistics using
 the model output.
 

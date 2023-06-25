@@ -33,7 +33,7 @@
 \usepackage{hyperref}
 \usepackage{varioref}
 
-\title{GLM -- Lecture 2\\Adding a predictor}
+\title{The general linear model -- Lecture 2\\Adding a predictor}
 \author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
 
 \date{Ghent, 12--14 July 2023}
@@ -622,7 +622,7 @@ Figure \ref{fig:conditionalmean} illustrates this concept graphically.
 The cross-section of the 95\% confidence band at a given $x$ value
 is the 95\% confidence interval of the corresponding conditional mean.
 
-<<fig.width = 4, fig.height = 3, echo = FALSE, fig.cap = "If we assume that the residuals are i.i.d., then the regression line connects the estimated conditional means for the distribution of $y$ at different $x$-values. In this illustration, the residuals are all assumed to be normally distributed, but this is not a necessary assumption for making sense of the regression line. If the residuals aren't normally distributed, however, it's possible that the conditional means don't capture what's interesting about how $x$ and $y$ relate to each other.\\label{fig:conditionalmean}", out.width = ".8\\textwidth">>=
+<<fig.width = 4, fig.height = 3, echo = FALSE, fig.cap = "If we assume that the residuals are i.i.d., then the regression line connects the estimated conditional means for the distribution of $y$ at different $x$-values. In this illustration, the residuals are all assumed to be normally distributed, but this is not a necessary assumption for making sense of the regression line. If the residuals aren't normally distributed, however, it's possible that the conditional means don't capture what's interesting about how $x$ and $y$ relate to each other.\\label{fig:conditionalmean}", out.width = ".7\\textwidth">>=
 set.seed(1)
 x <- runif(200)
 dat <- data.frame(x = x,

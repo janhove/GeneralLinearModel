@@ -35,7 +35,7 @@
 \usepackage{hyperref}
 \usepackage{varioref}
 
-\title{GLM -- Lecture 1\\Nuts and bolts}
+\title{The general linear model -- Lecture 1\\Nuts and bolts}
 \author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
 
 \date{Ghent, 12--14 July 2023}
