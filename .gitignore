@@ -2,6 +2,7 @@
 *.Rproj
 .Rproj.user/*
 cache/*
+figs/*
 
 ## We only need .Rnw files, not .tex fies
 *.tex
