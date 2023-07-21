@@ -172,7 +172,7 @@ ggplot(data = d,
 @
 
 Our first goal in this section is to describe these 76
-\textsc{gjt} values using a single number. While you
+\textsc{gjt} values using a single number. While
 different kinds of averages exist
 (arithmetic mean, median, trimmed mean, winsorised mean, etc.),
 let's pretend we don't know anything about those.
@@ -317,30 +317,22 @@ equals 0:
 \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0}\sum_{i = 1}^n (y_i - \widehat{\beta}_0)^2  \overset{!}{=} 0.
 \]
 This only requires secondary school mathematics.
-% The proof is in the footnote.\footnote{\begin{proof}
-% We wish to find $\widehat{\beta}_0$ so as to minimise the expression $\sum_{i = 1}^n (y_i - \widehat{\beta}_0)^2$.
-% This expression is strictly convex in $\widehat{\beta}_0$
-% and so any local minimum is also a global minimum.
-% It is also differentiable everywhere.
-% From secondary school, we now that the derivative of a differentiable function
-% is zero where the function reaches its local extrema.
-% So let's take the derivative, set it to zero,
-% and solve for $\widehat{\beta}_0$:
-% \begin{align*}
-%   \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0}\sum_{i = 1}^n (y_i - \widehat{\beta}_0)^2
-%   &= \sum_{i = 1}^n \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} (y_i -\widehat{\beta}_0)^2 & [\textrm{The derivative of a sum is the sum of the derivatives.}] \\
-%   &= \sum_{i = 1}^n \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0}\left(y_i^2 - 2y_i\widehat{\beta}_0 + \widehat{\beta}_0^2\right) & [\textrm{Unpacking the square of a difference.}] \\
-%   &= \sum_{i = 1}^n \left(\frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} y_i^2 -  \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} 2y_i\widehat{\beta}_0 + \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} \widehat{\beta}_0^2\right)& [\textrm{The derivative of a sum is the sum of the derivatives.}] \\
-%   &= \sum_{i = 1}^n \left(0 - 2y_i + 2\widehat{\beta}_0\right) & [\textrm{Basic derivatives.}] \\
-%   &= -\left(2 \sum_{i=1}^n y_i\right) + 2n\widehat{\beta}_0.
-% \end{align*}
-% The above is equal to zero if and only if
-% $2\sum_{i=1}^n y_i = 2n\widehat{\beta}_0$. Dividing both sides by $2n$, we obtain
-% \[
-%   \widehat{\beta}_0 = \frac{1}{n}\sum_{i=1}^n y_i,
-% \]
-% that is, the arithmetic mean of the $y_i$ values.
-% \end{proof}}
+\footnote{
+First compute the derivative of $\sum_{i=1}^{n} (y_i - \widehat{\beta}_0)^2$ with respect to $\widehat{\beta}_0:$
+\begin{align*}
+  \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0}\sum_{i = 1}^n (y_i - \widehat{\beta}_0)^2
+  % &= \sum_{i = 1}^n \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} (y_i -\widehat{\beta}_0)^2 & [\textrm{The derivative of a sum is the sum of the derivatives.}] \\
+  &=\frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} \sum_{i = 1}^n \left(y_i^2 - 2y_i\widehat{\beta}_0 + \widehat{\beta}_0^2\right) & [\textrm{Unpacking the square of a difference.}] \\
+  &= \sum_{i = 1}^n \left(\frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} y_i^2 -  \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} 2y_i\widehat{\beta}_0 + \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} \widehat{\beta}_0^2\right)& [\textrm{The derivative of a sum is the sum of the derivatives.}] \\
+  &= \sum_{i = 1}^n \left(0 - 2y_i + 2\widehat{\beta}_0\right) & [\textrm{Basic derivatives.}] \\
+  &= -\left(2 \sum_{i=1}^n y_i\right) + 2n\widehat{\beta}_0.
+\end{align*}
+The above is equal to zero if and only if
+$2\sum_{i=1}^n y_i = 2n\widehat{\beta}_0$. Dividing both sides by $2n$, we obtain
+\[
+  \widehat{\beta}_0 = \frac{1}{n}\sum_{i=1}^n y_i,
+\]
+that is, the arithmetic mean of the $y_i$ values.}
 
 Computationally, the method of least squares is the easiest to work with.
 Unless otherwise mentioned, the parameter estimates in the general linear model
@@ -432,8 +424,9 @@ mean 0 and a standard deviation of $3$.
 The independence assumption entails that
 if we know the value of one residual, then 
 this doesn't provide us with any more information
-about any of the remaining residuals.\footnote{The formal definition
-of stochastic independence is more involved, but essentially boils down to this.}
+about any of the remaining residuals. 
+(The formal definition of stochastic independence is 
+more involved, but essentially boils down to this.)
 To make this more concrete, consider the following example.
 Let's say you wanted to estimate the average length of the
 [u] vowel in the Ghent vernacular. To this end, you have 
@@ -459,9 +452,10 @@ models. These are beyond the scope of this module, but see Module 9.
 
 We'll have more to say about modelling assumptions later.
 Let's now turn to the matter of estimating the extent of the uncertainty
-in our parameter estimates.\footnote{We \emph{could} go on and estimate
+in our parameter estimates.
+(We \emph{could} go on and estimate
 the uncertainty about our uncertainty estimates, but no-one does so and
-let's not go there.}
+let's not go there.)
 
 \subsection{The semi-parametric bootstrap}\label{sec:semiparametric}
 We're currently assuming that the residuals be identically and independently
@@ -595,7 +589,7 @@ normally distributed.
 Normal distributions are defined by two parameters:
 their mean $\mu$ and their variance $\sigma_{\varepsilon}^2$
 (or their standard deviation $\sigma_{\varepsilon}$).
-Since $\widehat{\beta}_0$ is equal to the same mean, the mean of the residuals
+Since $\widehat{\beta}_0$ is equal to the sample mean, the mean of the residuals
 is always equal to 0.\footnote{The mean of the residuals is always equal to zero:
 \[
   \frac{1}{n}\sum_{i = 1}^n \widehat{\varepsilon}_i
