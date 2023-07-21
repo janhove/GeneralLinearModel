@@ -589,7 +589,7 @@ The simulations below will confirm that \emph{both} models yield
 unbiased estimates of the causal influence of $x$ on $y$.
 By this standard, neither model is bad. That said, if we have the $z$ variable
 at our disposal, the second model is to be preferred. The reason for this
-will become clearer once we've simulated a couple of thousand dataset.
+will become clearer once we've simulated a couple of thousand datasets.
 To this end, we could write a new function, \texttt{generate\_dag2()},
 but we can also just use  \texttt{generate\_dag1()} and set the 
 parameter value of \texttt{z\_x} to $0$:
