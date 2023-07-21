@@ -248,7 +248,7 @@ $\widehat{\beta}_0$ and $\widehat{\beta}_1$ and then choose
 the pair of estimates that minimises $\sum_{i = 1}^n \widehat{\varepsilon_i}^2$.
 Figure \ref{fig:ols} shows that estimates of $\widehat{\beta}_0 \approx 190$
 and $\widehat{\beta}_1 \approx -1.2$ are optimal in this sense.
-<<cache = TRUE, echo = FALSE, fig.cap = "The sum of the squared residuals (divided by 10,000) of the GJT data for different combinations of parameter estimates. You can read this plot like a topographic map: the lines are contour lines. The sum is minimised for an intercept estimate near 190 and a slope estimate near $-1.2$, that is, there's a couldron near these coordinates.\\label{fig:ols}", fig.height = 3.8, fig.width = 3.8, fig.pos="t", out.width = ".7\\textwidth">>=
+<<cache = TRUE, echo = FALSE, fig.cap = "The sum of the squared residuals (divided by 10,000) of the GJT data for different combinations of parameter estimates. You can read this plot like a topographic map: the lines are contour lines. The sum is minimised for an intercept estimate near 190 and a slope estimate near $-1.2$.\\label{fig:ols}", fig.height = 3.8, fig.width = 3.8, fig.pos="t", out.width = ".7\\textwidth">>=
 parameter_grid <- expand.grid(beta0 = seq(185, 195, 0.2),
                               beta1 = seq(-2, -0.5, 0.1))
 parameter_grid$SS <- NA
