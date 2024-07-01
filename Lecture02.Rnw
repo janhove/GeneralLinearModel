@@ -1,6 +1,8 @@
 \documentclass{article}
 \usepackage[layout = a4paper]{geometry}
 
+\usepackage{setspace}
+\setstretch{1.25}
 \usepackage{parskip}
 
 \usepackage[T1]{fontenc}
@@ -23,6 +25,27 @@
 \usepackage{booktabs}
 \usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
 
+% Define a new counter for theorems, lemmas, remarks, etc.
+\newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
+\renewcommand{\themycounter}{2.\arabic{mycounter}}
+\NewDocumentCommand{\mypar}{som}{%
+  \refstepcounter{mycounter}%
+  \par\medskip\noindent\textbf{#3 \themycounter}%
+    \IfBooleanF{#1}{\IfValueT{#2}{\space(#2)}}\textbf{.}%
+}
+
+% After proofs
+\newcommand*{\QED}[1][$\diamondsuit$]{%
+\leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+    \quad\hbox{#1}%
+}
+
+% After comments / exercises
+\newcommand*{\parend}[1][$\diamondsuit$]{%
+\leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+    \quad\hbox{#1}%
+}
+
 % Referenzen
 \usepackage[sort]{natbib}
 
@@ -36,7 +59,7 @@
 \title{The general linear model -- Lecture 2\\Adding a predictor}
 \author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
 
-\date{Ghent, 12--14 July 2023}
+\date{Ghent, 15--17 July 2024}
 
 % KNITR options -----------------------------------
 <<setup, include=FALSE, cache=FALSE>>=
@@ -48,7 +71,7 @@ opts_chunk$set(fig.path = 'figs/',
                fig.show = 'hold',
                fig.pos = "tp",
                tidy = FALSE,
-               prompt = TRUE,
+               prompt = FALSE,
                comment = '',
                highlight = TRUE,
                dev = 'cairo_pdf',
@@ -57,7 +80,7 @@ opts_chunk$set(fig.path = 'figs/',
                fig.height = 5,
                message = FALSE,
                warning = FALSE,
-               out.width = '.4\\textwidth')
+               out.width = '.5\\textwidth')
 opts_knit$set(global.par = TRUE)
 
 options(formatR.arrow = TRUE,
@@ -94,19 +117,17 @@ What \citet{DeKeyser2010} wanted to find out wasn't so much the mean
 It's always a good idea to {\bf draw a graph} first. For the type of
 question we're concerned with, a {\bf scatterplot} is a reasonable choice.
 
-\begin{framed}
-{\bf Plot, plot, plot.} Take out time to learn to draw plots,
+\mypar[Plot, plot, plot]{Tip}
+Take out time to learn to draw plots,
 both to learn more about your data and to communicate your findings
 in talks and papers.
-This script will feature some basic examples, but for a better introduction,
-have a look at the following resources:
-\begin{itemize}
-  \item {\it Data visualization: A practical introduction} by Kieran Healy.
-  Available for free at \url{https://socviz.co/}.
-  
-  \item The tutorials available from my blog: \url{https://janhove.github.io/tags.html#tutorial-ref}.
-\end{itemize}
-\end{framed}
+This script will feature some basic examples, 
+but for a better introduction,
+I recommend Kieran Healy's 
+{\it Data visualization: A practical introduction}, which is 
+available for free at \url{https://socviz.co/}.
+You'll find some further resources on my website (\url{https://janhove.github.io}).
+\parend
 
 Let's first read in the data again:
 <<>>=
@@ -164,7 +185,7 @@ plot(x, y4, axes = FALSE, main = "ceiling effect", xlab = "", ylab = "")
 lines(seq(0, 10, 0.01), pmin(seq(0, 10, 0.01), 5.5))
 @
 
-In what follows, we will apply the techniques learnt in the previous sections
+In what follows, we will apply the techniques learnt in the previous lecture
 in order to answer the following question: How does the \textsc{gjt} variable
 relate to the \textsc{aoa} variable?
 That is, once we know the value of someone's \textsc{aoa}
@@ -216,11 +237,16 @@ text(x = 2.15, y = -3.2+0.7*1.5, '}', cex = 2.5)
 text(x = 2.5, y = -3.2+0.7*1.5, expression(beta[1]), cex = 2)
 @
 
-{\bf Beware of the Greek letter fallacy:} Both the model from Lecture 1 and the one in Equation
+\mypar[The Greek letter fallacy]{Warning}
+Both the model from Lecture 1 and the one in Equation
 \ref{eq:simpleregression} contain the term $\beta_0$. But these two
 $\beta_0$s refer to different things (mean vs.\ intercept). The meaning
 of a model parameter hinges crucially on the other parameters as well
-as the variables included in the model!
+as the variables included in the model,
+so don't equate parameters in different models just because they have
+the same name.
+Lectures 4 and 5 in particular will drive this point home.
+\parend
 
 Incidentally, it's called `simple linear regression'
 because we're modelling the outcome in terms of a single
@@ -234,7 +260,7 @@ of `regression to the mean', but that'd take us too far.
 If we just pick our estimates for the $\beta_0, \beta_1$ parameters
 by hand, we could come up with any number of estimates that work sort of okay,
 just like in Lecture 1.
-Of course, what we want is a more principled method.
+We need a more principled approach.
 
 The estimation approaches we discussed in Lecture 1 still work.
 We will content ourselves with the least squares method as this is the one
@@ -245,7 +271,7 @@ the likelihood of the data assuming normally distributed
 residuals.)
 In principle, we could work through a number of suggestions for 
 $\widehat{\beta}_0$ and $\widehat{\beta}_1$ and then choose
-the pair of estimates that minimises $\sum_{i = 1}^n \widehat{\varepsilon_i}^2$.
+the pair of estimates that minimises $\sum_{i = 1}^n \widehat{\varepsilon}_i^2$.
 Figure \ref{fig:ols} shows that estimates of $\widehat{\beta}_0 \approx 190$
 and $\widehat{\beta}_1 \approx -1.2$ are optimal in this sense.
 <<cache = TRUE, echo = FALSE, fig.cap = "The sum of the squared residuals (divided by 10,000) of the GJT data for different combinations of parameter estimates. You can read this plot like a topographic map: the lines are contour lines. The sum is minimised for an intercept estimate near 190 and a slope estimate near $-1.2$.\\label{fig:ols}", fig.height = 3.8, fig.width = 3.8, fig.pos="t", out.width = ".7\\textwidth">>=
@@ -275,9 +301,9 @@ contour(x = unique(parameter_grid$beta0),
 @
 
 We could also derive these estimates mathematically. Conceptually,
-the maths are fairly easy,
-but they require some familiarity with first-year university mathematics
-to spell out precisely.
+the maths are fairly easy: we want to solve the same problem as in the previous
+lecture, but for two parameter estimates simultaneously rather than for just one.
+But to spell this out precisely, we would need some first-year university mathematics.
 So let's skip straight to computing the \textsc{ols} estimates in R:
 <<>>=
 aoa.lm <- lm(GJT ~ AOA, data = d)
@@ -304,6 +330,23 @@ ggplot(data = d,
   geom_point(shape = 1) +
   geom_smooth(method = "lm", se = FALSE)
 @
+I set the \texttt{se} parameter in the \texttt{geom\_smooth()} layer to
+\texttt{FALSE}. Setting it to \texttt{TRUE} would plot a 95\% confidence band --
+which is a concept we haven't yet discussed.
+
+\mypar[Other optimality criteria]{Remark}
+  Apart from the least squares method, other methods exist for estimating
+  the parameters in the general linear model. In Lecture 1, the method
+  of least absolute deviations was already mentioned, which leads to
+  {\bf median regression} (a form of {\bf quantile regression}).
+  Some methods seek to minimise some combination of the sum of the squared
+  deviations and the size of the $\beta$ estimates. Depending on the precise
+  criterium, these techniques are known as {\bf lasso regularisation},
+  {\bf ridge regularisation} or the {\bf elastic net}.
+  The basic idea behind these techniques is to purposefully introduce some
+  bias in the estimation of the $\beta$ parameters but by doing so
+  reduce the sample-to-sample variability of the estimates.
+\parend
 
 \section{Quantifying uncertainty}
 Our estimates for $\beta_0, \beta_1$ are based on a sample and are hence
@@ -351,21 +394,26 @@ gridExtra::grid.arrange(p1, p2, p3, ncol = 3)
 \subsection{The semi-parametric bootstrap}
 The logic is identical to that of Lecture 1.
 The only difference is that we now estimate two parameters.
-So rather than writing the bootstrapped estimates in a vector,
-we record them in the rows of a two-column matrix:
+Instead of generating a vector with bootstrapped estimates,
+we need to write pairs of estimates in the rows of a two-column matrix.
+As a result, the code changes slightly. But the logic is the same.
 <<cache = TRUE>>=
 d$Prediction <- predict(aoa.lm)
 d$Residual <- resid(aoa.lm)
 
 n_bootstrap <- 20000
+# preallocate 20000-by-2 matrix
 bs_b <- matrix(nrow = n_bootstrap, ncol = 2)
 
 for (i in 1:n_bootstrap) {
-  # Steps 2 and 3
+  # Step 2
+  bs_resid <- sample(d$Residual, replace = TRUE)
+  # Steps 3
   d <- d |> 
-    mutate(bs_outcome = Prediction + sample(Residual, replace = TRUE))
+    mutate(bs_outcome = Prediction + bs_resid)
   # Step 4
   bs_mod <- lm(bs_outcome ~ AOA, data = d)
+  # store both estimates in i-th row
   bs_b[i, ] <- coef(bs_mod)
 }
 @
@@ -389,7 +437,7 @@ hist(bs_b[, 2])
 The standard deviations of these distributions serve as estimates of the
 standard errors for $\widehat{\beta}_0, \widehat{\beta}_1$:
 <<>>=
-# apply(x, 2, function) applies that function to x by columns
+# apply(x, 2, function) applies function to x by columns
 apply(bs_b, 2, sd)
 @
 
@@ -435,7 +483,7 @@ Alternatively, we could assume that the residuals are drawn from a
 normal distribution, i.e.,
 \begin{align}
   y_i &= \beta_0 + \beta_1x_i + \varepsilon_i, \label{eq:simple_regression_normal}\\
-  \varepsilon_i &\sim \textrm{Normal}(0, \sigma_{\varepsilon}^2),\nonumber
+  \varepsilon_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, \sigma_{\varepsilon}^2),\nonumber
 \end{align}
 for $i = 1, 2, \dots, n$. Note that this notation encapsulates 
 the homoskedasticity assumption: the variance of the normal distribution
@@ -449,9 +497,11 @@ n_bootstrap <- 20000
 bs_b <- matrix(nrow = n_bootstrap, ncol = 2)
 
 for (i in 1:n_bootstrap) {
-  # Steps 2 and 3
+  # Step 2
+  bs_resid <- rnorm(n = nrow(d), sd = sigma_aoa.lm)
+  # Step 3
   d <- d |> 
-    mutate(bs_outcome = Prediction + rnorm(n = n(), sd = sigma_aoa.lm))
+    mutate(bs_outcome = Prediction + bs_resid)
   # Step 4
   bs_mod <- lm(bs_outcome ~ AOA, data = d)
   bs_b[i, ] <- coef(bs_mod)
@@ -722,11 +772,11 @@ This is not a coincidence but a general phenomenon, the proof of which
 is provided in the footnote.\footnote{The estimated conditional mean
 for the mean predictor value equals the sample mean of the outcome.
 \begin{proof}
-According to the regression model, $y_i = \widehat{\beta}_0 + \widehat{\beta}_1x_i + \widehat{\varepsilon_i}$ for $i = 1, 2, \dots, n$. Hence we have
+According to the regression model, $y_i = \widehat{\beta}_0 + \widehat{\beta}_1x_i + \widehat{\varepsilon}_i$ for $i = 1, 2, \dots, n$. Hence we have
 \[
   \frac{1}{n}\sum_{i = 1}^n y_i
-  = \frac{1}{n}\sum_{i = 1}^n(\widehat{\beta}_0 + \widehat{\beta}_1x_i + \widehat{\varepsilon_i})
-  = \frac{1}{n}n\widehat{\beta}_0 + \frac{1}{n}\widehat{\beta}_1\sum_{i=1}^n x_i + \frac{1}{n}\sum_{i=1}^n \widehat{\varepsilon_i}.
+  = \frac{1}{n}\sum_{i = 1}^n(\widehat{\beta}_0 + \widehat{\beta}_1x_i + \widehat{\varepsilon}_i)
+  = \frac{1}{n}n\widehat{\beta}_0 + \frac{1}{n}\widehat{\beta}_1\sum_{i=1}^n x_i + \frac{1}{n}\sum_{i=1}^n \widehat{\varepsilon}_i.
 \]
 We know that the mean of the estimated residuals is always zero when using \textsc{ols},
 so this simplifies to
@@ -787,7 +837,7 @@ points(x, y, pch = 16)
 @
 
 Finally, a word on the meaning of the estimated intercept,
-$\widehat{\beta}_0$. The intercept represent the estimated conditional mean
+$\widehat{\beta}_0$. The intercept represents the estimated conditional mean
 for participants with a predictor value of 0. However, zero
 lies outside the range of \textsc{aoa} values in our sample.
 A common trick to render the estimated intercept more informative about the data
@@ -829,7 +879,7 @@ whether these assumptions literally hold (they don't), ask yourself whether
 your model is relevant to the questions you want to answer. The simple linear 
 model seeks to characterise the linear relationship between the predictor
 and the outcome. If the relationship between predictor and outcome isn't approximately
-linear, the model's output will still be literally correct in many situations;
+linear, the model's output will still be literally correct in many situations --
 but it may not help you find out what you want to know. In such cases, purely
 graphical data analyses or models capable of capturing nonlinearities (e.g.,
 generalised additive models) may be
@@ -843,7 +893,7 @@ relevant to your research project, you may want to resort to models that not
 only capture conditional means but changes in the spread as well (e.g.,
 generalised least-squares models).
 
-As always, plotting the data helps you and your readership from flying blind.
+As always, plotting the data prevents you and your readership from flying blind.
 
 \section*{Summary}
 \begin{itemize}
@@ -852,9 +902,9 @@ As always, plotting the data helps you and your readership from flying blind.
   In the next lectures, we'll broaden the scope even more.
   
   \item The intercept represents the estimated outcome value when the
-  predictor variable is fixed at 0. Depending on your data and research question,
-  this may not be relevant information, but you can translate your predictor
-  data to make the intercept more meaningful.
+  predictor variable is fixed at 0. 
+  Depending on your data and research question, this may not be relevant information.
+  But you can translate your predictor data to make the intercept more meaningful.
   
   \item The slope is the estimated difference between the outcome distributions
   of observations that differ by one unit in the predictor variable.
@@ -896,7 +946,7 @@ Now try to answer the following questions.
   
 \end{enumerate}
 
-\bibliographystyle{/home/jan/ownCloud/Documents/Literature/unified}
-\bibliography{/home/jan/ownCloud/Documents/Literature/bibliography}
+\bibliographystyle{unified}
+\bibliography{bibliography}
 
 \end{document}
