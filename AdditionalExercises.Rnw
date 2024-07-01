@@ -1,0 +1,210 @@
+\documentclass{article}
+\usepackage[layout = a4paper]{geometry}
+
+\usepackage{parskip}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+\usepackage[sc]{mathpazo}
+\newcommand{\Prob}{\,\mathbb{P}}
+\newcommand{\df}{\,\textrm{d}}
+\newcommand{\glm}{\textsc{glm}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% Abbildungen und Tabellen
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{booktabs}
+\usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+
+% Referenzen
+\usepackage[sort]{natbib}
+
+% Boxes
+\usepackage{framed}
+
+% Hyperlinks
+\usepackage{hyperref}
+\usepackage{varioref}
+
+\title{The general linear model -- Additional exercises}
+\author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
+
+\date{Ghent, 12--14 July 2023}
+
+% KNITR options -----------------------------------
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
+
+# set global chunk options
+opts_chunk$set(fig.path = 'figs/',
+               fig.align = 'center',
+               fig.show = 'hold',
+               fig.pos = "tp",
+               tidy = FALSE,
+               prompt = TRUE,
+               comment = '',
+               highlight = TRUE,
+               dev = 'cairo_pdf',
+               cache = FALSE,
+               fig.width = 5,
+               fig.height = 5,
+               message = FALSE,
+               warning = FALSE,
+               out.width = '.4\\textwidth')
+opts_knit$set(global.par = TRUE)
+
+options(formatR.arrow = TRUE,
+        width = 60, 
+        show.signif.stars = FALSE, 
+        tibble.print_max = 7,
+        tibble.print_min = 7,
+        digits = 5)
+
+set.seed(2023-07-12)
+@
+
+<<echo = FALSE>>=
+par(las = 1,
+    bty = "l",
+    mar = c(3,3,2,1),
+    mgp = c(2,.7, 0),
+    tck = -.01)
+@
+
+<<echo = FALSE>>=
+op <- par()
+@
+
+\begin{document}
+
+\maketitle
+
+\section*{Exercise 1: An experiment}
+From the abstract of \citet{Vanhove2016}:
+\begin{quote}
+``This article investigates whether learners are able to quickly discover simple, systematic graphemic correspondence rules between their L1 and an unknown but closely related language in a setting of receptive multilingualism.
+
+(\dots)
+
+Eighty L1 German speakers participated in a translation task with written Dutch words, most of which had a German cognate. In the first part of the translation task, participants were shown 48 Dutch words, among which either 10 cognates containing the digraph ‹oe› (always corresponding to a German word with ‹u›) or 10 cognates with the digraph ‹ij› (corresponding to German ‹ei›). During this part, participants were given feedback in the form of the correct translation. In the second (feedback-free) part of the task, participants were shown another 150 Dutch words, among which 21 cognates with ‹oe› and 21 cognates with ‹ij›.''
+\end{quote}
+What I wanted to know was whether the exposure and feedback
+to ten words containing a specific interlingual orthographic
+correspondence (i.e., ‹oe›--‹u› or ‹ei›--‹ij›) was
+sufficient for the
+participants to pick up on this correspondence and use their
+knowledge in translating new words containing the correspondence.
+
+First, we read in the data and compute, for each participant,
+the proportion of words in the second (feedback-free) part of the task
+which they translated correctly in each category (cognates containing
+‹oe›, cognates containing ‹ij›, other cognates, non-cognates).
+
+<<>>=
+library(tidyverse)
+library(here)
+d <- read_csv(here("data", "correspondencerules.csv"))
+d_perParticipant <- d |> 
+  filter(Block != "training") |> 
+  group_by(Subject, LearningCondition, Category, WSTRight) |> 
+  summarise(ProportionCorrect = mean(Correct == "yes"),
+            .groups = "drop")
+@
+
+I've also retained a measure of the participants' L1 (German)
+vocabulary knowledge, namely the \texttt{WSTRight} variable.
+Use \texttt{View(d\_perParticipant)} to inspect the structure
+of the cleaned-up and restructured dataset.
+
+Your mission, should you choose to accept it: Analyse this dataset
+to answer the research question.
+
+Hints:
+\begin{itemize}
+\item There are several acceptable ways of analysing these data.
+\item All of them involve plotting the data :)
+\item Some of them involve fitting two models (on two different subsets of the data).
+\item Note that \texttt{LearningCondition} varies \emph{between}
+      participants whereas \texttt{Category} varies \emph{within}
+      participants.
+\item Ask for help :)
+\end{itemize}
+
+\section*{Exercise 2: An exercise in plotting}
+\citet{Pestana_HELASCOT_reading}
+measured the Portuguese reading skills of
+Portuguese children in Portugal,
+French-speaking Switzerland,
+and German-speaking Switzerland (\texttt{LanguageGroup}) at three points
+in time (\texttt{Time}).
+
+Let's read in their data. We'll just
+retain the reading data in Portuguese.
+<<>>=
+skills <- read_csv(here("data", "helascot_skills.csv"))
+background <- read_csv(here("data", "helascot_background.csv"))
+d <- skills |> 
+  left_join(background, by = "Subject") |> 
+  filter(LanguageTested == "Portuguese") |> 
+  filter(!is.na(Reading))
+@
+
+Since the \texttt{Time} variable is just
+a number, we'll recode it as a factor:
+<<>>=
+d$Time <- factor(d$Time)
+@
+
+Your task:
+Draw a plot showing how the reading scores differ between the different data collections (\texttt{Time}) and the language groups.
+
+\section*{Exercise 3}
+From the abstract of \citet{Hicks2021}:
+\begin{quotation}
+``This study explores whether middle-school students can exploit explicitly addressed crosslinguistic lexical similarities between German and English to learn vocabulary more efficiently. Across six weeks, 260 Swiss German learners of English as a foreign language (17 classes) completed three vocabulary learning tests (T1, T2 and T3). Additionally, 7 of these 17 classes attended a 90-minute intervention between the first and second test: During a 45-minute introductory lesson students discovered four systematic orthographic correspondence rules (e.g. <p> to <f> as in ship and Schiff), followed by three 15-minute sessions to consolidate their knowledge.''
+\end{quotation}
+She was interested in whether the children in the experimental condition were able to 
+learn vocabulary more efficiently than the children in the control condition.
+
+The dataset contains lots of variables that aren't of interest for this
+exercise, so let's discard those:
+<<>>=
+d <- read_csv(here("data", "hicks2021.csv")) |> 
+  select(ID, Class, Group, T1cog, T3cog)
+@
+\texttt{ID} contains the participants' study-internal identification;
+\texttt{class} identifies their school class;
+\texttt{Group} the experimental condition to which they were assigned;
+\texttt{T1cog} is the participants' pretest performance;
+\texttt{T3cog} is the participants' posttest performance.
+
+Task:
+\begin{enumerate}
+  \item Assume the participants were randomly, and individually, assigned
+  to the experimental conditions. Analyse the data.
+  
+  \item In actual fact, all participants in the same class were assigned
+  to the same condition. In other words, the participants were not assigned
+  to the conditions individually. What kind of problems might this cause for 
+  the analysis?
+  
+  \item Moreover, the participants weren't randomly assigned to the conditions.
+  Those classes whose English teachers agreed to be part of the intervention
+  group were assigned to the experimental group; those whose English teachers
+  did not agree to do so were assigned to the control group. What kind of problems
+  might this have caused?
+\end{enumerate}
+
+\bibliographystyle{/home/jan/ownCloud/Documents/Literature/unified}
+\bibliography{/home/jan/ownCloud/Documents/Literature/bibliography}
+
+\end{document}
