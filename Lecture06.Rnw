@@ -62,7 +62,7 @@
 \title{The general\emph{ised} linear model -- Lecture 6\\The basics of logistic regression}
 \author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
 
-\date{Ghent, 12--14 July 2023}
+\date{Ghent, 15--17 July 2024}
 
 % KNITR options -----------------------------------
 <<setup, include=FALSE, cache=FALSE>>=
