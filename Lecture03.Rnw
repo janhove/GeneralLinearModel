@@ -1,6 +1,8 @@
 \documentclass{article}
 \usepackage[layout = a4paper]{geometry}
 
+\usepackage{setspace}
+\setstretch{1.25}
 \usepackage{parskip}
 
 \usepackage[T1]{fontenc}
@@ -23,6 +25,27 @@
 \usepackage{booktabs}
 \usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
 
+% Define a new counter for theorems, lemmas, remarks, etc.
+\newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
+\renewcommand{\themycounter}{3.\arabic{mycounter}}
+\NewDocumentCommand{\mypar}{som}{%
+  \refstepcounter{mycounter}%
+  \par\medskip\noindent\textbf{#3 \themycounter}%
+    \IfBooleanF{#1}{\IfValueT{#2}{\space(#2)}}\textbf{.}%
+}
+
+% After proofs
+\newcommand*{\QED}[1][$\diamondsuit$]{%
+\leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+    \quad\hbox{#1}%
+}
+
+% After comments / exercises
+\newcommand*{\parend}[1][$\diamondsuit$]{%
+\leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+    \quad\hbox{#1}%
+}
+
 % Referenzen
 \usepackage[sort]{natbib}
 
@@ -36,7 +59,7 @@
 \title{The general linear model -- Lecture 3\\Group differences}
 \author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
 
-\date{Ghent, 12--14 July 2023}
+\date{Ghent, 15--17 July 2024}
 
 % KNITR options -----------------------------------
 <<setup, include=FALSE, cache=FALSE>>=
@@ -48,7 +71,7 @@ opts_chunk$set(fig.path = 'figs/',
                fig.show = 'hold',
                fig.pos = "tp",
                tidy = FALSE,
-               prompt = TRUE,
+               prompt = FALSE,
                comment = '',
                highlight = TRUE,
                dev = 'cairo_pdf',
@@ -57,7 +80,7 @@ opts_chunk$set(fig.path = 'figs/',
                fig.height = 5,
                message = FALSE,
                warning = FALSE,
-               out.width = '.4\\textwidth')
+               out.width = '.5\\textwidth')
 opts_knit$set(global.par = TRUE)
 
 options(formatR.arrow = TRUE,
@@ -110,6 +133,7 @@ We'll work with the replication data from one such new sample:
 <<>>=
 library(tidyverse)
 library(here)
+theme_set(theme_bw())
 d <- read_csv(here("data", "Klein2014_money_abington.csv"))
 @
 
@@ -139,6 +163,7 @@ p_boxplotdeluxe <- ggplot(data = d,
                               y = Sysjust)) +
   # don't plot outliers twice
   geom_boxplot(outlier.shape = NA) +
+  # add some random noise to the x position of the points to reduce overlap
   geom_point(shape = 1,
              position = position_jitter(width = 0.2, height = 0)) +
   xlab("bank note") +
@@ -151,10 +176,11 @@ Note the setting \texttt{outlier.shape = NA}
 in the \texttt{geom\_boxplot()} command. This suppresses the drawing of
 potential outliers in the boxplot. If we didn't do this, we would be plotting
 such potential outliers twice: once as part of the boxplot, and once 
-as individual data points. Moreover, the data points are jittered vertically so that
+as individual data points. (There are no such outliers in this dataset, though.)
+Moreover, the data points are jittered horizontally so that
 they don't overlap as much.
 
-Using the functions provided by the tidyverse packages, we can easily
+Using the functions provided by the tidyverse packages, we can
 construct a table with the basic descriptive statistics for both of the
 experiment's conditions.
 <<>>=
@@ -188,14 +214,14 @@ another variable to the tibble that encodes this information numerically:
 d$n.MoneyGroup <- ifelse(d$MoneyGroup == "treatment", yes = 1, no = 0)
 @
 
-Now, we can use the newly created dummy variable just like the more or
+Now, we can use the newly created dummy variable like the more or
 less continuous predictor variable in Lecture 2:
 <<>>=
 money.lm <- lm(Sysjust ~ n.MoneyGroup, data = d)
 coef(money.lm)
 @
 \label{model:money.lm}
-Uncertainty estimates can be obtained just like in Lecture 2. Here, we'll
+Uncertainty estimates can be obtained like in Lecture 2. Here, we'll
 skip straight to the estimated standard errors and confidence intervals
 based on the assumption that the $\varepsilon_i$ were sampled i.i.d.\
 from a normal distribution; in the exercises for this chapter, you'll learn
@@ -219,7 +245,7 @@ or, put differently,
 That is, the estimated intercept term shows us the estimated conditional
 mean for the group coded as 0, which should come as no surprise given
 what we've seen in Lecture 2.
-From Lecture 2, we also know that $ \widehat{\beta}_0 + \widehat{\beta_1}$
+From Lecture 2, we also know that $ \widehat{\beta}_0 + \widehat{\beta}_1$
 gives us the estimated conditional mean for the group coded as 1.
 The estimated $\beta_1$ parameter, then, tells us how much higher
 the estimated mean for the 1-group is compared to the 0-group.
@@ -247,7 +273,12 @@ We can use these estimates to compute the conditional means for the treatment an
 \[
   y_i = 3.53 - 0.006x_i + \widehat{\varepsilon}_i.
 \]
-(Due to rounding, this is the same equation as before. Note, however, that the actual estimate for the intercept is slightly different between the two models.) To obtain the estimate for the conditional mean for the treatment group, we use $x_i = 0.5$; to obtain the estimated conditional mean for the control group, we use $x_i = -0.5$:
+Due to rounding, this is the same equation as before. 
+Note, however, that the actual estimate for the intercept is slightly different between the two models. 
+To obtain the estimate for the conditional mean for the treatment group, 
+we use $x_i = 0.5$; 
+to obtain the estimated conditional mean for the control group, 
+we use $x_i = -0.5$:
 \[
   \widehat{y}_{\textrm{treatment}} = 3.53 - 0.006\cdot 0.5
 \]
@@ -270,14 +301,59 @@ consider the following:
 That is, when using sum-coding, the estimated intercept corresponds
 to the average of the conditional means for both groups, that is, to the {\bf grand mean}.
 
-\begin{framed}
-  {\bf Alabama first.}
+\mypar{Tip}
   If you want to use treatment coding, you don't actually have to 
   code the dummy variables yourself -- R can take care of this for you.
   However, by default, R codes such variables in alphabetical order.
-  For instance, if your two groups are called `English' and `Dutch', the Dutch group would be coded as 0 and would be incorporated into the intercept estimate. But if your two groups are called `Engels' and `Nederlands', the English group would be coded as 0.
+  For instance, if your two groups are called `English' and `Dutch', the Dutch group would be coded as 0 and would be incorporated into the intercept estimate. 
+  But if your two groups are called `Engels' and `Nederlands', the English group would be coded as 0.
   I recommend you code your dummy variables by hand, so you know what's going on.
-\end{framed}
+\parend
+
+\mypar{Exercise}
+Refer back to the \texttt{money.lm} model on page \pageref{model:money.lm}. 
+How would the parameter estimates change if we coded the treatment group as 0 and the control group as 1? Try to answer this question without using the computer.
+\parend
+
+\mypar{Exercise}
+Refer back to the \texttt{money.lm2} model on page \pageref{model:money.lm2}. 
+How would the parameter estimates change if we coded the treatment group as 1 and the control group as $-1$? 
+How could you interpret the slope estimate?
+Try to answer these questions without using the computer.
+\parend
+
+\mypar{Exercise}
+One of the other findings that \citet{Klein2014} sought to replicate
+  was the gambler's fallacy as studied by \citet{Oppenheimer2009}. \citet{Klein2014} summarise
+  this experiment as follows:
+ \begin{quote}
+ ``\citet{Oppenheimer2009a} investigated whether the rarity of an independent, chance
+ observation influenced beliefs about what occurred before that event.
+ Participants imagined that they saw a man rolling dice in a casino.
+ In one condition, participants imagined witnessing three dice being rolled
+ and all came up 6's. In a second condition two came up 6's and one came up 3.
+ In a third condition, two dice were rolled and both came up 6's.
+ All participants then estimated, in an open-ended format, how
+ many times the man had rolled the dice before they
+ entered the room to watch him. Participants estimated
+ that the man rolled dice more times when they had
+ seen him roll three 6's than when they had seen him
+ roll two 6's or two 6's and a 3. For the replication,
+ the condition in which the man rolls two 6's was removed leaving two conditions.''
+ \end{quote}
+ 
+ You can find the data for this replication study in \texttt{Klein2014\_gambler.csv}.
+ Analyse these data in light of the research question, but only consider the data
+ from the \texttt{ufl} sample. Summarise your findings in two to three sentences.
+ 
+ To get you started, here's how you can read in the data from just the \texttt{ufl}
+ sample:
+<<eval = FALSE>>=
+gambler <- read_csv(here("data", "Klein2014_gambler.csv")) |> 
+  filter(Sample == "ufl")
+@
+ Inspect the dataset by typing its name at the R prompt, or use \texttt{View(gambler)}.
+\parend
 
 \section{Differences between more than two groups}
 In \citet{Vanhove2017}, I investigated how German gender
@@ -351,7 +427,7 @@ xtabs(~ Strategy + Condition, data = d)
 xtabs(~ Information + Condition, data = d)
 @
 
-The general linear model can easily deal with several
+The general linear model can deal with several
 predictors. So we can add both dummy variables to the model.
 The resulting model equation looks like this:
 \[
@@ -393,7 +469,7 @@ may be more directly useful for you, depending on what you want to find out.
 For instance, we could code the dummy variables in such a way that $\widehat{\beta}_2$
 estimates the difference between the conditional means for the third and second condition
 rather than between those for the third and first condition. \citet{Schad2020}
-explain how this can be accomplished; also see the entry on my blog \href{https://janhove.github.io/analysis/2020/05/05/contrast-coding}{\textit{Tutorial: Obtaining directly interpretable regression coefficients by recoding categorical predictors}}.
+explain how this can be accomplished; also see the entry on my blog \href{https://janhove.github.io/posts/2020-05-05-contrast-coding/}{\textit{Tutorial: Obtaining directly interpretable regression coefficients by recoding categorical predictors}}.
 This technique is extremely useful as it often enables you to read off
 the answers to your research questions directly from the model output,
 as opposed to your having to piece together an answer based on several
@@ -405,45 +481,8 @@ what the numbers in the output of your model literally mean before you try to
 interpret them in terms of your subject matter.
 \end{framed}
 
-
-\section*{Exercises}
-\begin{enumerate}
-  \item (Paper and pencil.) Refer back to the \texttt{money.lm} model on page \pageref{model:money.lm}. How would the parameter estimates change if we coded the treatment group as 0 and the control group as 1?
-  
-  \item (Paper and pencil.) Refer back to the \texttt{money.lm2} model on page \pageref{model:money.lm2}. How would the parameter estimates change if we coded the treatment group as 1 and the control group as $-1$?
-  
-    \item (With R.) One of the other findings that \citet{Klein2014} sought to replicate
-  was the gambler's fallacy as studied by \citet{Oppenheimer2009}. \citet{Klein2014} summarise
-  this experiment as follows:
- \begin{quote}
- ``\citet{Oppenheimer2009a} investigated whether the rarity of an independent, chance
- observation influenced beliefs about what occurred before that event.
- Participants imagined that they saw a man rolling dice in a casino.
- In one condition, participants imagined witnessing three dice being rolled
- and all came up 6's. In a second condition two came up 6's and one came up 3.
- In a third condition, two dice were rolled and both came up 6's.
- All participants then estimated, in an open-ended format, how
- many times the man had rolled the dice before they
- entered the room to watch him. Participants estimated
- that the man rolled dice more times when they had
- seen him roll three 6's than when they had seen him
- roll two 6's or two 6's and a 3. For the replication,
- the condition in which the man rolls two 6's was removed leaving two conditions.''
- \end{quote}
- 
- You can find the data for this replication study in \texttt{Klein2014\_gambler.csv}.
- Analyse these data in light of the research question, but only consider the data
- from the \texttt{ufl} sample. Summarise your findings in two to three sentences.
- 
- To get you started, here's how you can read in the data from just the \texttt{ufl}
- sample:
-<<eval = FALSE>>=
-gambler <- read_csv(here("data", "Klein2014_gambler.csv")) |> 
-  filter(Sample == "ufl")
-@
- Inspect the dataset by typing its name at the R prompt, or use \texttt{View(gambler)}.
-  
-  \item (With R.) In the analyses in this lecture, we estimated standard errors and constructed
+\mypar[Semi-parametric bootstrap without homoskedasticity assumption]{Exercise}
+  In the analyses in this lecture, we estimated standard errors and constructed
   confidence intervals based on the assumption that the residuals were i.i.d.\ normal. We can
   check whether we obtain similar results when we make different assumptions.
   To that end, we can run a semi-parametric bootstrap in which the bootstrapped residuals
@@ -452,9 +491,12 @@ gambler <- read_csv(here("data", "Klein2014_gambler.csv")) |>
   the possibility that the residuals in different conditions are drawn from different distributions.
   
   The code below is similar to that of the previous semi-parametric bootstraps;
-  the only thing that was added is the \texttt{group\_by(Condition)} call in line 19.
+  the only thing that was added is the \texttt{group\_by(Condition)} call in the \textit{for}-loop.
   This splits up the dataset into groups by \texttt{Condition} so that the 
   resampling of the \texttt{Residual} values in line 20 only happens within each condition.
+  In other words, a residual value in the information condition can only 
+  be reassigned to another observation in the information condition, and similary
+  for the other conditions.
   
   Copy this code (ideally by typing rather than copy-pasting it; you'll learn more this way)
   and run it. How would the conclusions you draw from this analysis differ from the ones
@@ -486,9 +528,10 @@ for (i in 1:n_bootstrap) {
 apply(bs_b, 2, sd)
 apply(bs_b, 2, quantile, prob = c(0.025, 0.975))
 @
-\end{enumerate}
+How could you adapt this code so that it works for the money priming example?
+\parend
 
-\bibliographystyle{/home/jan/ownCloud/Documents/Literature/unified}
-\bibliography{/home/jan/ownCloud/Documents/Literature/bibliography}
+\bibliographystyle{unified}
+\bibliography{bibliography}
 
 \end{document}
