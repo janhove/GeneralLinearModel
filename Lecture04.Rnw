@@ -1,6 +1,8 @@
 \documentclass{article}
 \usepackage[layout = a4paper]{geometry}
 
+\usepackage{setspace}
+\setstretch{1.25}
 \usepackage{parskip}
 
 \usepackage[T1]{fontenc}
@@ -23,6 +25,27 @@
 \usepackage{booktabs}
 \usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
 
+% Define a new counter for theorems, lemmas, remarks, etc.
+\newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
+\renewcommand{\themycounter}{3.\arabic{mycounter}}
+\NewDocumentCommand{\mypar}{som}{%
+  \refstepcounter{mycounter}%
+  \par\medskip\noindent\textbf{#3 \themycounter}%
+    \IfBooleanF{#1}{\IfValueT{#2}{\space(#2)}}\textbf{.}%
+}
+
+% After proofs
+\newcommand*{\QED}[1][$\diamondsuit$]{%
+\leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+    \quad\hbox{#1}%
+}
+
+% After comments / exercises
+\newcommand*{\parend}[1][$\diamondsuit$]{%
+\leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+    \quad\hbox{#1}%
+}
+
 % Referenzen
 \usepackage[sort]{natbib}
 
@@ -36,7 +59,7 @@
 \title{The general linear model -- Lecture 4\\Interactions}
 \author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
 
-\date{Ghent, 12--14 July 2023}
+\date{Ghent, 15--17 July 2024}
 
 % KNITR options -----------------------------------
 <<setup, include=FALSE, cache=FALSE>>=
@@ -48,7 +71,7 @@ opts_chunk$set(fig.path = 'figs/',
                fig.show = 'hold',
                fig.pos = "tp",
                tidy = FALSE,
-               prompt = TRUE,
+               prompt = FALSE,
                comment = '',
                highlight = TRUE,
                dev = 'cairo_pdf',
@@ -57,7 +80,7 @@ opts_chunk$set(fig.path = 'figs/',
                fig.height = 5,
                message = FALSE,
                warning = FALSE,
-               out.width = '.4\\textwidth')
+               out.width = '.5\\textwidth')
 opts_knit$set(global.par = TRUE)
 
 options(formatR.arrow = TRUE,
@@ -165,6 +188,7 @@ Let's read in the data and plot them.
 
 <<out.width = '.5\\textwidth', fig.width = 1.4*2.5, fig.height = 1.4*2.2, fig.cap = "A first attempt at plotting the data. The patterns in the data aren't so clear because the data are too coarse for boxplots.\\label{fig:berthelebp1}">>=
 library(tidyverse)
+theme_set(theme_bw())
 library(here)
 
 d <- read_csv(here("data", "berthele2012.csv"))
@@ -223,8 +247,7 @@ ggplot(d,
   facet_grid(cols = vars(CS))
 @
 
-\begin{framed}
-\noindent \textbf{Try out several plots.} 
+\mypar[Try out several plots]{Recommendation}
 For group comparisons, boxplots are often a good choice, but it's often
 possible to improve on them. Don't hesitate to try out alternative plots.
 
@@ -232,7 +255,7 @@ Incidentally, it can take some time to find a good way to visualise your
 data. For the last graph, I had to tinker with the colour of the data points
 as we as with the colour, shape and size of the means. But ultimately, all of
 this is time well spent.
-\end{framed}
+\parend
 
 \subsection{Model}
 We now turn our attention to the matter of modelling these data
@@ -241,7 +264,7 @@ name and the presence or absence of code-switches interact: If code-switches
 are present, `Dragan's' academic potential is rated worse than `Luca's',
 but if they are absent, the order is flipped. We want our model to capture
 this interplay between the two predictors. To that end, we will need 
-four $\beta$ parameter.
+four $\beta$ parameters.
 \begin{itemize}
  \item $\beta_0$, the intercept, captures the baseline of the ratings.
  \item $\beta_1$ captures the difference between the cells depending on the purported name (Dragan vs.\ Luca).
@@ -264,10 +287,10 @@ The interaction term is a new variable that is the pointwise product of the two
 predictor variables. For the four cells in the present design, this new variable
 takes on two values:
 \begin{itemize}
- \item Luca (0) without Codeswitches (0): $x_{1,i} \cdot x_{2,i} = 0 \cdot 0 = 0$.
- \item Luca (0) with Codeswitches (1): $x_{1,i} \cdot x_{2,i} = 0 \cdot 1 = 0$.
- \item Dragan (1) without Codeswitches (0): $x_{1,i} \cdot x_{2,i} = 1 \cdot 0 = 0$.
- \item Dragan (1) with Codeswitches (1): $x_{1,i} \cdot x_{2,i} = 1 \cdot 1 = 1$.
+ \item Luca (0) without code-switches (0): $x_{1,i} \cdot x_{2,i} = 0 \cdot 0 = 0$.
+ \item Luca (0) with code-switches (1): $x_{1,i} \cdot x_{2,i} = 0 \cdot 1 = 0$.
+ \item Dragan (1) without code-switches (0): $x_{1,i} \cdot x_{2,i} = 1 \cdot 0 = 0$.
+ \item Dragan (1) with code-switches (1): $x_{1,i} \cdot x_{2,i} = 1 \cdot 1 = 1$.
 \end{itemize}
 
 Let's compute the dummy variables and their product:
@@ -326,76 +349,8 @@ In the first exercise for this lecture, you will learn to interpret the
 estimated parameters for a model that uses a different coding scheme.
 See \citet{Schad2020} and my blog post on recoding predictors for more details.
 
-% While we could recode the predictors in such a way that, for instance,
-% $\beta_1$ expresses the average difference in the ratings for Luca and Dragan
-% across both levels of code-switches and $\beta_2$ expresses the average difference in
-% the ratings for the recording with vs.\ the one without code-switches,
-% we won't do so here. That said, if you ever need to analyse a study with
-% a factorial design such as this, I recommend you read \citet{Schad2020}
-% or have a look at my blog post on recoding predictors.
-
-\subsection{Uncertainty estimates}
-We can obtain estimated standard errors as well as confidence intervals
-just like before by using the \texttt{summary()} and \texttt{confint()}
-commands. Again, these computations are based on the assumption
-that the residuals are i.i.d.\ normal, but you can always use bootstrapping
-to check if a different set of assumptions leads to the same conclusion.
-<<>>=
-summary(potential.lm)$coefficients
-confint(potential.lm, level = 0.90)
-@
-Because we used treatment coding here, the estimates for \texttt{Dragan}
-and \texttt{WithCS} aren't too relevant. The study's main result
-is that the presence of code-switches is some $0.93 \pm 0.28$ points more detrimental
-to ratings of `Dragan's' academic potential than it is to ratings of `Luca's' academic
-potential. Equivalently, the \emph{absence} of code-switches is some $0.93 \pm 0.28$ more
-beneficial to ratings of `Dragan's' academic potential 
-than it is to ratings of `Luca's' academic potential. (Interaction effects can often
-be framed in several equivalent ways.)\label{par:finding_berthele}
-
-\section{Interactions between a binary and a continuous predictor}
-Sometimes, researchers want to find out if the relationship between
-a continuous predictor and the outcome differs between groups.
-This type of research question, too, can be addressed in a general linear model.
-The idea is the same as in the previous section: Dummy-code the group variable,
-compute its pointwise product with the continuous predictor, and feed
-the dummy-coded group variable, the continuous predictor, and their pointwise product
-into the model.
-
-For reasons of time, we won't run through
-an example of such an analysis. But you should be aware of a common analytical
-strategy that does \emph{not} work. This doomed strategy is to fit several 
-models in order to gauge the relationship between
-the continuous predictor and the outcome separately for each group, and
-to conclude that if this relationship is statistically significant in one
-group but not in the other, there must be an interaction between the 
-groups and the continuous predictor. \citet{Gelman2006} and \citet{Nieuwenhuis2011}
-explain why this is a terrible idea.
-
-\section{More complex interactions}
-It's possible to fit interactions between two continuous
-predictors; see the blog entry \href{https://janhove.github.io/analysis/2017/06/26/continuous-interactions}{\textit{Interactions between continuous variables}}.
-It's also possible to fit interactions between three or more predictors.
-However, it can be difficult to make sense of three-way, four-way, etc.\ interactions,
-and I don't have any datasets that call for such an analysis.
-
-\section{A word of warning to the cognitive scientists}
-The mere fact that a statistical model suggests that two predictor variables
-interact in their effect on some outcome variable
-does \emph{not} imply that these predictor variable interact in their effect
-on the \emph{construct} that this outcome variable represents.
-This is particularly important to appreciate if the interaction in question
-is not a cross-over interaction, that is, if the relative order between two 
-groups or conditions switches depending on the other predictor.
-For instance, if we observe a non-cross-over interaction between reading experience
-and word frequency on reading speed, this does not imply that reading experience
-and word frequency have non-additive effects on the cognitive construct that
-reading speed represents, viz., cognitive effort.
-See \citet{Wagenmakers2012} for further explanation.
-
-\section{Exercises}
-\begin{enumerate}
-  \item (Paper and pencil.) Consider the following fictitious experiment and
+\mypar[Different coding scheme]{Exercise}
+Consider the following fictitious experiment and
   analysis. Eighty participants are randomly assigned to the four cells
   of a two-by-two design, each cell corresponding to one of the combinations
   of two binary predictor variables (Variable 1: A vs.\ B, Variabe 2: X vs.\ Y).
@@ -431,39 +386,79 @@ coef(exercise.lm)
     \item Compute the mean outcome value for each of the four cells.
     \item Explain what the estimated \texttt{(Intercept)} coefficient represents.
     \item Explain what the estimated \texttt{Var1} and \texttt{Var2} coefficient represent.
-    \item Explain what the estimated \texttt{Interaction} coefficient represents.
+    \item Explain what the estimated \texttt{Interaction} coefficient represents.\parend
   \end{enumerate}
-  
-  \item (With R.) The main finding in \citet{Berthele2011b} was the 
+
+\subsection{Uncertainty estimates}
+We can obtain estimated standard errors as well as confidence intervals
+just like before by using the \texttt{summary()} and \texttt{confint()}
+commands. Again, these computations are based on the assumption
+that the residuals are i.i.d.\ normal, but you can always use bootstrapping
+to check if a different set of assumptions leads to the same conclusion.
+<<>>=
+summary(potential.lm)$coefficients
+confint(potential.lm, level = 0.90)
+@
+Because we used treatment coding here, the estimates for \texttt{Dragan}
+and \texttt{WithCS} aren't too relevant. The study's main result
+is that the presence of code-switches is some $0.93 \pm 0.28$ points more detrimental
+to ratings of `Dragan's' academic potential than it is to ratings of `Luca's' academic
+potential. Equivalently, the \emph{absence} of code-switches is some $0.93 \pm 0.28$ more
+beneficial to ratings of `Dragan's' academic potential 
+than it is to ratings of `Luca's' academic potential. (Interaction effects can often
+be framed in several equivalent ways.)\label{par:finding_berthele}
+
+\mypar{Exercise}
+The main finding in \citet{Berthele2011b} was the 
   interaction effect of $-0.93 \pm 0.28$ points (90\% CI: $[-1.40, -0.47]$).
   Double-check this estimated standard error and the 90\% confidence interval
   using a semi-parametric bootstrap that does not assume that the residuals
-  are homoskedastic.
+  are homoskedastic, as explained in Lecture 3.
   
-  Tip: You can group the data by two variables by using \texttt{group\_by(variable1, variable2)}.
-  
-<<eval = FALSE, echo = FALSE>>=
-d$Prediction <- predict(potential.lm)
-d$Residual <- resid(potential.lm)
+  Tip: You can group the data by two variables by using 
+  \texttt{group\_by(variable1, variable2)}. \parend
 
-n_bootstrap <- 20000
-bs_res <- matrix(ncol = 4, nrow = n_bootstrap)
+\section{Interactions between a binary and a continuous predictor}
+Sometimes, researchers want to find out if the relationship between
+a continuous predictor and the outcome differs between groups.
+This type of research question, too, can be addressed in a general linear model.
+The idea is the same as in the previous section: Dummy-code the group variable,
+compute its pointwise product with the continuous predictor, and feed
+the dummy-coded group variable, the continuous predictor, and their pointwise product
+into the model.
 
-for (i in 1:n_bootstrap) {
-  d <- d |> 
-    group_by(Dragan, WithCS) |> 
-    mutate(bs_outcome = Prediction + sample(Residual, replace = TRUE))
-  bs.lm <- lm(bs_outcome ~ Dragan + WithCS + DraganWithCS, data = d)
-  bs_res[i, ] <- coef(bs.lm)
-}
+For reasons of time, we won't run through
+an example of such an analysis. But you should be aware of a common analytical
+strategy that does \emph{not} work. This doomed strategy is to fit several 
+models in order to gauge the relationship between
+the continuous predictor and the outcome separately for each group, and
+to conclude that if this relationship is statistically significant in one
+group but not in the other, there must be an interaction between the 
+groups and the continuous predictor. \citet{Gelman2006} and \citet{Nieuwenhuis2011}
+explain why this is a terrible idea.
 
-apply(bs_res, 2, sd)
-apply(bs_res, 2, quantile, prob = c(0.05, 0.95))
-@
+\section{More complex interactions}
+It's possible to fit interactions between two continuous
+predictors; see the blog entry \href{https://janhove.github.io/posts/2017-06-26-continuous-interactions/}{\textit{Interactions between continuous variables}}.
+It's also possible to fit interactions between three or more predictors.
+However, it can be difficult to make sense of three-way, four-way, etc.\ interactions,
+and I don't have any datasets that call for such an analysis.
 
-\end{enumerate}
+\section{A word of warning to the cognitive scientists}
+The mere fact that a statistical model suggests that two predictor variables
+interact in their effect on some outcome variable
+does \emph{not} imply that these predictor variable interact in their effect
+on the \emph{construct} that this outcome variable represents.
+This is particularly important to appreciate if the interaction in question
+is not a cross-over interaction, that is, if the relative order between two 
+groups or conditions switches depending on the other predictor.
+For instance, if we observe a non-cross-over interaction between reading experience
+and word frequency on reading speed, this does not imply that reading experience
+and word frequency have non-additive effects on the cognitive construct that
+reading speed represents, viz., cognitive effort.
+See \citet{Wagenmakers2012} for further explanation.
 
-\bibliographystyle{/home/jan/ownCloud/Documents/Literature/unified}
-\bibliography{/home/jan/ownCloud/Documents/Literature/bibliography}
+\bibliographystyle{unified}
+\bibliography{bibliography}
 
 \end{document}
