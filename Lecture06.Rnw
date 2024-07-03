@@ -1,6 +1,8 @@
 \documentclass{article}
 \usepackage[layout = a4paper]{geometry}
 
+\usepackage{setspace}
+\setstretch{1.25}
 \usepackage{parskip}
 
 \usepackage[T1]{fontenc}
@@ -24,6 +26,28 @@
 \usepackage[export]{adjustbox}
 \usepackage{booktabs}
 \usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+
+
+% Define a new counter for theorems, lemmas, remarks, etc.
+\newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
+\renewcommand{\themycounter}{5.\arabic{mycounter}}
+\NewDocumentCommand{\mypar}{som}{%
+  \refstepcounter{mycounter}%
+  \par\medskip\noindent\textbf{#3 \themycounter}%
+    \IfBooleanF{#1}{\IfValueT{#2}{\space(#2)}}\textbf{.}%
+}
+
+% After proofs
+\newcommand*{\QED}[1][$\diamondsuit$]{%
+\leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+    \quad\hbox{#1}%
+}
+
+% After comments / exercises
+\newcommand*{\parend}[1][$\diamondsuit$]{%
+\leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+    \quad\hbox{#1}%
+}
 
 % Referenzen
 \usepackage[sort]{natbib}
@@ -50,7 +74,7 @@ opts_chunk$set(fig.path = 'figs/',
                fig.show = 'hold',
                fig.pos = "tp",
                tidy = FALSE,
-               prompt = TRUE,
+               prompt = FALSE,
                comment = '',
                highlight = TRUE,
                dev = 'cairo_pdf',
@@ -59,7 +83,7 @@ opts_chunk$set(fig.path = 'figs/',
                fig.height = 5,
                message = FALSE,
                warning = FALSE,
-               out.width = '.4\\textwidth')
+               out.width = '.5\\textwidth')
 opts_knit$set(global.par = TRUE)
 
 options(formatR.arrow = TRUE,
@@ -172,16 +196,19 @@ Loss framing & 34          & 121         \\ \bottomrule
 Let's reconstruct the dataset:
 <<>>=
 library(tidyverse)
+theme_set(theme_bw())
 d <- tibble(
   framing = c(rep("gain", 109 + 43),
               rep("loss", 34 + 121)),
   choice = c(rep("A", 109), rep("B", 43),
              rep("A", 34), rep("B", 121))
 )
+# inspect:
+slice_sample(d, n = 8)
 xtabs(~ framing + choice, d)
 @
 
-It's easy to compute the proportion of choices for Programme A (the sure option):
+We can compute the proportion of choices for Programme A (the sure option) like so:
 <<>>=
 d |> 
   group_by(framing) |> 
@@ -189,16 +216,19 @@ d |>
 @
 
 Using the linear probability model, the difference in the proportions
-can be retrieved easily, and uncertainty estimates for this difference can
+can be retrieved, and uncertainty estimates for this difference can
 be computed:
 <<>>=
 d <- d |> 
   mutate(sure_choice = ifelse(choice == "A", 1, 0),
-         n.loss = ifelse(framing == "loss", 1, 0))
+         n.loss = ifelse(framing == "loss", 1, 0))  # treatment coding
 tversky.lm <- lm(sure_choice ~ n.loss, data = d)
 summary(tversky.lm)$coefficients
 confint(tversky.lm)
 @
+That is, the percentage of sure choices is just shy of $50 \pm 0.05$ percentage
+points lower in the loss framing condition than in the gain framing condition.
+The 95\% confidence interval spans from $-60$ to $-40$ percentage points.
 You can double-check these confidence intervals using a semi-parametric
 bootstrap that does not assume homoskedasticity, but we won't do so here.
 
@@ -295,6 +325,7 @@ Figure \ref{fig:logodds} shows that the logistic function looks like.
 
 <<echo = FALSE, out.width=".5\\textwidth",fig.width = 0.6*7, fig.height = 0.6*5, fig.cap = "The logistic function onverts log-odds into probabilities.\\label{fig:logodds}">>=
 library(tidyverse)
+theme_set(theme_bw())
 
 p_to_odds <- function(x) {
   x/(1-x)
@@ -327,19 +358,20 @@ which means that
     p_i, & \textrm{if $x = 1$}.
   \end{cases}
 \]
+(For $x \notin \{0, 1\}$, $\Prob(X_i = x) = 0$.)
 Our goal is to estimate the $p_i$s. We do so by modelling them as log-odds
 in a linear model and then backtransforming these into probabilities:
-\begin{align}
+\begin{align*}
   X_i &\sim \textrm{Bernoulli}(p_i), \nonumber \\
   p_i &= \frac{1}{1 + \exp(- \eta_i)}, \nonumber \\
   \eta_i &= \beta_0 + \beta_1x_i, \nonumber \\
-\end{align}
+\end{align*}
 where $x_i = 1$ if the $i$-th participant was presented the scenario
 with loss framing and $x_i = 0$ otherwise and where $X_1, \dots X_{307}$
 are independently distributed.
 
 The model parameters are estimated using maximum likelihood estimation,
-which was briefly mentioned at the end of Lecture 1. In brief, we
+which was mentioned at the end of Lecture 1. In brief, we
 pick as our estimates $\widehat{\beta}_0, \widehat{\beta}_1$
 the $\beta_0$ and $\beta_1$ given which the data we have observed
 would be most likely to occur:
@@ -421,7 +453,7 @@ for the estimated $\beta$ parameters as well as (approximate) confidence interva
 <<>>=
 confint(tversky.glm)
 @
-We can straightforwardly express these confidence intervals on the odds scale by exponentiation:
+We can express these confidence intervals on the odds scale by exponentiation:
 <<>>=
 exp(confint(tversky.glm))
 @
@@ -430,7 +462,87 @@ While \emph{odds} can be converted into probabilities, odds \emph{ratios} cannot
 If you want to estimate the effect of framing in percentage points and obtain a confidence interval
 that is also expressed in percentages, consider fitting a linear probability model.
 
-Generalised linear models can accommodate multiple predictors; see the exercises.
+Generalised linear models can accommodate multiple predictors, as in the following
+exercise.
+
+\mypar[Fitting interactions]{Exercise}
+\citet{Keysar2012} extended the experiment by \citet{Tversky1981}
+by having some participants complete the experiment in their
+native language (English) and others in a foreign language they
+were learning (Japanese). They were interested in finding out whether the
+framing effect that \citet{Tversky1981} had observed was as pronounced
+when the participants deal with the dilemma in a foreign language as 
+it was in their native language. That is, they were interested in the
+interaction between framing and language.
+
+We read in the data and summarise it numerically:
+<<>>=
+library(here)
+d <- read_csv(here("data", "Keysar2012.csv"))
+d |> 
+  group_by(language, framing) |> 
+  summarise(
+    sure_choices = sum(sure_choice == 1),
+    unsure_choices = sum(sure_choice == 0)
+  )
+@
+
+\begin{enumerate}
+  \item (With R.) Create a dummy variable for \texttt{language}
+  that has the value 0 for English and 1 for Japanese.
+  Also create a dummy variable for \texttt{framing} that has the
+  value 0 for gain framing and 1 for loss framing. (That is, use treatment
+  coding.) Fit a logistic model with these dummy variables and their pointwise
+  product (interaction) as predictors.
+  
+  \item (Paper and pencil.) You should have obtained the following estimated
+  model parameters:
+<<echo = FALSE>>=
+d <- d |> 
+  mutate(n.language = ifelse(d$language == "Japanese", yes = 1, no = 0),
+         n.framing = ifelse(d$framing == "loss", yes = 1, no = 0),
+         interaction = n.language*n.framing)
+keysar.glm <- glm(sure_choice ~ n.language + n.framing + interaction,
+                  data = d,
+                  family = binomial(link = "logit"))
+summary(keysar.glm)$coefficients[, 1:2]
+@
+  \begin{enumerate}
+    \item Explain what each estimated model parameter means literally.
+    \item Based on these coefficients, compute the estimated probability that
+          a participant who read the dilemma in the loss-framing condition
+          and in English picks the sure option. Verify your answer using
+          the numerical summary above.
+          
+    \item Based on these coefficients, compute the estimated probability that
+          a participant who read the dilemma in the loss-framing condition
+          and in Japanese picks the sure option. Verify your answer using
+          the numerical summary above.
+  \end{enumerate}
+          
+  \item (With R.) Compute a 95\% confidence interval for the interaction parameter
+          and convert it to an odds ratio.
+          
+  \item (Paper and pencil.) How would you answer Keysar et al.'s research question?\parend
+  \end{enumerate}
+  
+\mypar[Sum coding]{Exercise}
+We refit Keysar et al.'s data using sum-coded predictors:
+<<>>=
+d <- d |> 
+  mutate(n.language = ifelse(d$language == "Japanese", yes = 0.5, no = -0.5),
+         n.framing = ifelse(d$framing == "loss", yes = 0.5, no = -0.5),
+         interaction = n.language*n.framing)
+keysar.glm <- glm(sure_choice ~ n.language + n.framing + interaction,
+                  data = d,
+                  family = binomial(link = "logit"))
+summary(keysar.glm)$coefficients[, 1:2]
+@
+The estimate for the interaction parameter is the same as before
+but the estimates for the other parameters have changed.
+Explain what the parameter estimates for \texttt{(Intercept)},
+\texttt{n.language} and \texttt{n.framing} mean.
+\parend
 
 \section{Continuous predictors}
 You can also fit continuous predictors in the generalised linear model. By way of example, we'll take a look
@@ -443,7 +555,7 @@ of this lecture.}
 
 Let's read in the data and draw a scatterplot including a scatterplot smoother (Figure \ref{fig:continuouslogistic}). Even though 
 this smoother doesn't take into account that the data are binary (notice how it extends beyond the $[0,1]$ interval),
-it highlight a monotonous association between orthographic overlap and the participant's translation success.
+it highlights a monotonic association between orthographic overlap and the participant's translation success.
 <<warning = FALSE, message = FALSE, fig.width = 4, fig.height = 2, out.width = "0.5\\textwidth", fig.cap = "There seems to be a monotonous relationship between the degree of overlap and whether the participant correctly translated the word. Note, though, that scatterplot smoother extends beyond the $[0,1]$ interval on the $y$ axis.\\label{fig:continuouslogistic}">>=
 library(here)
 d <- read_csv(here("data", "VanhoveBerthele2013_oneparticipant.csv"))
@@ -458,7 +570,7 @@ ggplot(data = d,
   geom_smooth(se = FALSE)
 @
 
-We can straightforwardly fit these data in a logistic model:
+We can fit these data in a logistic model:
 <<>>=
 translation.glm <- glm(Correct ~ Overlap, data = d,
                        family = binomial(link = "logit"))
@@ -496,7 +608,7 @@ plogis(-3.313 + 0.594*7.23)
 @
 \end{itemize}
 
-To wrap off, let's draw a plot that shows how, according to the model,
+Let's draw a plot that shows how, according to the model,
 the success probability varies with the degree of orthographic overlap
 (Figure \ref{fig:modelfit}). Note that the plotted curve isn't straight.
 This is because we modelled the data linearly in log-odds space;
@@ -518,73 +630,10 @@ ggplot(data = d,
   stat_function(fun = model_to_prob, args = list(model = translation.glm))
 @
 
+For further guidance on visualising logistic regression models,
+see \url{https://janhove.github.io/visualise_uncertainty/}.
 
-
-\section*{Exercises}
-\citet{Keysar2012} extended the experiment by \citet{Tversky1981}
-by having some participants complete the experiment in their
-native language (English) and others in a foreign language they
-were learning (Japanese). They were interested in finding out whether the
-framing effect that \citet{Tversky1981} had observed was as pronounced
-when the participants deal with the dilemma in a foreign language as 
-it was in their native language. That is, they were interested in the
-interaction between framing and language.
-
-We read in the data and summarise it numerically:
-<<>>=
-d <- read_csv(here("data", "Keysar2012.csv"))
-d |> 
-  group_by(language, framing) |> 
-  summarise(
-    sure_choices = sum(sure_choice == 1),
-    unsure_choices = sum(sure_choice == 0)
-  )
-@
-
-\begin{enumerate}
-  \item (With R.) Create a dummy variable for \texttt{language}
-  that has the value 0 for English and 1 for Japanese.
-  Also create a dummy variable for \texttt{framing} that has the
-  value 0 for gain framing and 1 for loss framing. (That is, use treatment
-  coding.) Fit a logistic model with these dummy variables and their pointwise
-  product (interaction) as predictors.
-  
-  \item (Paper and pencil.) You should have obtained the following estimated
-  model parameters:
-<<echo = FALSE>>=
-d <- d |> 
-  mutate(n.language = ifelse(d$language == "English", 0, 1),
-         n.framing = ifelse(d$framing == "gain", 0, 1),
-         interaction = n.language*n.framing)
-keysar.glm <- glm(sure_choice ~ n.language + n.framing + interaction,
-                  data = d,
-                  family = binomial(link = "logit"))
-summary(keysar.glm)$coefficients
-@
-  \begin{enumerate}
-    \item Explain what each estimated model parameter means literally.
-    \item Based on these coefficients, compute the estimated probability that
-          a participant who read the dilemma in the loss-framing condition
-          and in English picks the sure option. Verify your answer using
-          the numerical summary above.
-          
-    \item Based on these coefficients, compute the estimated probability that
-          a participant who read the dilemma in the loss-framing condition
-          and in Japanese picks the sure option. Verify your answer using
-          the numerical summary above.
-      \end{enumerate}
-          
-    \item (With R.) Compute a 95\% confidence interval for the interaction parameter
-          and convert it to an odds ratio.
-          
-    \item (Paper and pencil.) How would you answer Keysar et al.'s research question?
-
-
-
-\end{enumerate}
-
-
-\bibliographystyle{/home/jan/ownCloud/Documents/Literature/unified}
-\bibliography{/home/jan/ownCloud/Documents/Literature/bibliography}
+\bibliographystyle{unified}
+\bibliography{bibliography}
 
 \end{document}
