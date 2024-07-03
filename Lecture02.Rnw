@@ -129,17 +129,14 @@ available for free at \url{https://socviz.co/}.
 You'll find some further resources on my website (\url{https://janhove.github.io}).
 \parend
 
-Let's first read in the data again:
+Let's first read in the data again and set the default plotting theme
+to \texttt{theme\_bw()} (black and white):
 <<>>=
 library(tidyverse)
 library(here)
+theme_set(theme_bw())
 d <- read_csv(here("data", "dekeyser2010.csv"))
 @
-
-<<echo = FALSE>>=
-theme_set(theme_bw())
-@
-
 
 Since it's impossible for \textsc{gjt} to influence \textsc{aoa}
 but quite likely that \textsc{aoa} influences \textsc{gjt},
@@ -396,7 +393,7 @@ The logic is identical to that of Lecture 1.
 The only difference is that we now estimate two parameters.
 Instead of generating a vector with bootstrapped estimates,
 we need to write pairs of estimates in the rows of a two-column matrix.
-As a result, the code changes slightly. But the logic is the same.
+But the logic is the same.
 <<cache = TRUE>>=
 d$Prediction <- predict(aoa.lm)
 d$Residual <- resid(aoa.lm)

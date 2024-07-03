@@ -551,7 +551,9 @@ d$Prediction <- predict(mod.lm)
 d$Residual <- resid(mod.lm)
 
 n_bootstrap <- 20000
-bs_b0 <- replicate(n_bootstrap, {
+bs_b0 <- vector(length = n_bootstrap)
+
+for (i in 1:n_bootstrap) {
   # Step 2
   bs_resid <- sample(d$Residual, replace = TRUE)
   # Step 3
@@ -559,8 +561,8 @@ bs_b0 <- replicate(n_bootstrap, {
     mutate(bs_outcome = Prediction + bs_resid)
   # Step 4
   bs_mod <- lm(bs_outcome ~ 1, data = d)
-  coef(bs_mod)[[1]]
-})
+  bs_b0[[i]] <- coef(bs_mod)[[1]]
+}
 @
 
 A quick no-frills histogram of the $\widehat{\beta}_0^*$ values
@@ -681,7 +683,9 @@ with mean 0 and standard deviation $\widehat{\sigma}_{\varepsilon}$:
 sigma_mod.lm <- sigma(mod.lm)
 
 n_bootstrap <- 20000
-bs_b0 <- replicate(n_bootstrap, {
+bs_b0 <- vector(length = n_bootstrap)
+
+for (i in 1:n_bootstrap) {
   # Step 2
   bs_resid <- rnorm(n = nrow(d), sd = sigma_mod.lm)
   # Step 3
@@ -689,8 +693,8 @@ bs_b0 <- replicate(n_bootstrap, {
     mutate(bs_outcome = Prediction + bs_resid)
   # Step 4
   bs_mod <- lm(bs_outcome ~ 1, data = d)
-  coef(bs_mod)[[1]]
-})
+  bs_b0[[i]] <- coef(bs_mod)[[1]]
+}
 @
 
 We can again draw a histogram, which would again show that the
