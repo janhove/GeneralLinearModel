@@ -27,7 +27,7 @@
 
 % Define a new counter for theorems, lemmas, remarks, etc.
 \newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
-\renewcommand{\themycounter}{3.\arabic{mycounter}}
+\renewcommand{\themycounter}{4.\arabic{mycounter}}
 \NewDocumentCommand{\mypar}{som}{%
   \refstepcounter{mycounter}%
   \par\medskip\noindent\textbf{#3 \themycounter}%
