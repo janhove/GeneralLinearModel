@@ -127,18 +127,18 @@ vocabulary knowledge, namely the \texttt{WSTRight} variable.
 Use \texttt{View(d\_perParticipant)} to inspect the structure
 of the cleaned-up and restructured dataset.
 
-Your mission, should you choose to accept it: Analyse this dataset
-to answer the research question.
+Analyse this dataset to answer the research question.
 
-Hints:
+Hints (also for other exercises):
 \begin{itemize}
 \item There are several acceptable ways of analysing these data.
 \item All of them involve plotting the data :)
-\item Some of them involve fitting two models (on two different subsets of the data).
 \item Note that \texttt{LearningCondition} varies \emph{between}
       participants whereas \texttt{Category} varies \emph{within}
       participants.
-\item Ask for help :)
+\item First try to work out on a piece of paper what it is you want to do.
+      You can always ask someone to help you implement your idea in R.
+\item Ask for help and feedback! :)
 \end{itemize}
 
 \section*{Exercise 2: An exercise in plotting}
@@ -205,6 +205,61 @@ Task:
   did not agree to do so were assigned to the control group. What kind of problems
   might this have caused?
 \end{enumerate}
+
+\section*{Exercise 4: Meaning of model parameters}
+
+<<echo = FALSE, message = FALSE>>=
+cognates <- read_csv(here("data", "vanhove2014_cognates.csv"))
+background <- read_csv(here("data", "vanhove2014_background.csv"))
+d <- cognates %>%   
+  left_join(background, by = "Subject") %>%
+   filter(English.Overall != -9999)
+ 
+d$n.Sex <- ifelse(d$Sex == "male", 0.5, -0.5)
+options(digits = 2)
+@
+
+We're given a data set \texttt{d} with the outcome \texttt{CorrectSpoken}
+and four predictors:
+\begin{itemize}
+  \item \texttt{n.Sex}: $0.5$ for men, $-0.5$ for women (sum coding).
+  \item \texttt{NrLang}: Number of languages spoken for each participant (varies from 1 to 5).
+  \item \texttt{DS.Span}: Score on the backward digit span, a working memory test (varies from 2 to 8, more is better).
+  \item \texttt{Raven.Right}: Score on a test of fluid intelligence (varies from 0 to 35, more is better).
+\end{itemize}
+
+We fit the following model:
+<<>>=
+mod.lm <- lm(CorrectSpoken ~ NrLang + DS.Span + n.Sex*Raven.Right,
+             data = d)
+summary(mod.lm)$coefficients
+@
+
+\begin{enumerate}
+\item What does the estimate of $-5.02$ for the \texttt{n.Sex} parameter refer to? That is, what does it mean literally.
+
+\item Let's say we wanted to fit a similar model but one that has an intercept
+      with a more useful interpretation. Explain how we could achieve this.
+      Also explain how we can interpret the intercept in this new model.
+
+\item Claim: We can glean from the model that, at least in this data set,
+      participants with a high working memory capacity do not outperform
+      participants with a low working memory capacity in terms of the \texttt{CorrectSpoken} variable. \\
+      Is this claim correct? (Yes or no.) Justify your answer.
+
+\item What gets computed here?
+<<>>=
+8.554 + 1.115*3 - 0.097*4 + 0.286*25
+@
+
+\item How large, according to the model, is the expected average difference 
+in the \texttt{CorrectSpoken} variable between women with a
+\texttt{Raven.Right} score of 20 and women with a \texttt{Raven.Right} score
+of 30, keeping \texttt{NrLang} and \texttt{DS.Span} constant. 
+It suffices to provide the computation without evaluating it.
+\end{enumerate}
+
+
 
 \bibliographystyle{unified}
 \bibliography{bibliography}
