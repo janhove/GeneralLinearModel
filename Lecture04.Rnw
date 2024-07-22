@@ -253,7 +253,7 @@ possible to improve on them. Don't hesitate to try out alternative plots.
 
 Incidentally, it can take some time to find a good way to visualise your
 data. For the last graph, I had to tinker with the colour of the data points
-as we as with the colour, shape and size of the means. But ultimately, all of
+as well as with the colour, shape and size of the means. But ultimately, all of
 this is time well spent.
 \parend
 
@@ -385,7 +385,7 @@ coef(exercise.lm)
   \begin{enumerate}
     \item Compute the mean outcome value for each of the four cells.
     \item Explain what the estimated \texttt{(Intercept)} coefficient represents.
-    \item Explain what the estimated \texttt{Var1} and \texttt{Var2} coefficient represent.
+    \item Explain what the estimated \texttt{Var1} and \texttt{Var2} coefficients represent.
     \item Explain what the estimated \texttt{Interaction} coefficient represents.\parend
   \end{enumerate}
 

@@ -114,7 +114,7 @@ can accommodate multiple predictor variables at once, yielding
 {\bf multiple regression models} as opposed to simple regression models.
 Mathematically and computationally, nothing really changes when
 adding more predictor variables to the model.
-Conceptually, however, multiple regression models often poses researchers
+Conceptually, however, multiple regression models often pose researchers
 a number of challenges. These mainly relate to the decision whether
 to include several predictor variables in the model and, relatedly,
 to how to interpret the estimated regression coefficients. Here, I don't use
@@ -897,7 +897,7 @@ intervention!
   out what they actually want to find out.
   
   \item Know what the literal meaning of the estimated model parameters is
-  before you interpret them in terms of the subject-matter.
+  before you interpret them in terms of the subject matter.
   
   \item As the exercises will show, plots of the actual data may help prevent
   both you and your readership from interpreting the model output incorrectly.

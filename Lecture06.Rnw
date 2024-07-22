@@ -226,7 +226,7 @@ tversky.lm <- lm(sure_choice ~ n.loss, data = d)
 summary(tversky.lm)$coefficients
 confint(tversky.lm)
 @
-That is, the percentage of sure choices is just shy of $50 \pm 0.05$ percentage
+That is, the percentage of sure choices is just shy of $50 \pm 5$ percentage
 points lower in the loss framing condition than in the gain framing condition.
 The 95\% confidence interval spans from $-60$ to $-40$ percentage points.
 You can double-check these confidence intervals using a semi-parametric
