@@ -1,0 +1,1109 @@
+\documentclass{article}
+\usepackage[layout = a4paper]{geometry}
+
+\usepackage{setspace}
+\setstretch{1.25}
+\usepackage{parskip}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+\usepackage[sc]{mathpazo}
+\newcommand{\pr}{\,\textrm{pr}}
+\newcommand{\df}{\,\textrm{d}}
+\newcommand{\glm}{\textsc{glm}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\K}{\mathbb{K}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\Cov}{\textrm{Cov}}
+\newcommand{\Var}{\textrm{Var}}
+\newcommand{\T}{^{\top}}
+\newcommand{\eqd}{\stackrel{d}{=}}
+
+% Abbildungen und Tabellen
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{booktabs}
+\usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+
+% Define a new counter for theorems, lemmas, remarks, etc.
+\newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
+\renewcommand{\themycounter}{4.\arabic{mycounter}}
+\NewDocumentCommand{\mypar}{som}{%
+  \refstepcounter{mycounter}%
+  \par\medskip\noindent\textbf{#3 \themycounter}%
+    \IfBooleanF{#1}{\IfValueT{#2}{\space(#2)}}\textbf{.}%
+}
+
+% After proofs
+\newcommand*{\QED}[1][$\diamondsuit$]{%
+\leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+    \quad\hbox{#1}%
+}
+
+% After comments / exercises
+\newcommand*{\parend}[1][$\diamondsuit$]{%
+\leavevmode\unskip\penalty9999 \hbox{}\nobreak\hfill
+    \quad\hbox{#1}%
+}
+
+% Terms
+\newcommand{\term}[1]{\textbf{#1}}
+
+% Inline R
+\newcommand{\rcode}[1]{\texttt{#1}}
+
+% Referenzen
+\usepackage[sort]{natbib}
+
+% Boxes
+\usepackage{framed}
+
+% Hyperlinks
+\usepackage{hyperref}
+\usepackage{varioref}
+
+\title{The general linear model\\ Lecture 5 -- Multiple predictors}
+\author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
+
+\date{Ghent, 14--16 July 2025}
+
+% KNITR options -----------------------------------
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
+
+# set global chunk options
+opts_chunk$set(fig.path = 'figs/',
+               fig.align = 'center',
+               fig.show = 'hold',
+               fig.pos = "tp",
+               tidy = FALSE,
+               prompt = FALSE,
+               comment = '',
+               highlight = TRUE,
+               dev = 'cairo_pdf',
+               cache = FALSE,
+               fig.width = 5,
+               fig.height = 5,
+               message = FALSE,
+               warning = FALSE,
+               out.width = '.5\\textwidth')
+opts_knit$set(global.par = TRUE)
+
+options(formatR.arrow = TRUE,
+        width = 60, 
+        show.signif.stars = FALSE, 
+        tibble.print_max = 7,
+        tibble.print_min = 7,
+        digits = 5)
+
+set.seed(2023)
+@
+
+<<echo = FALSE>>=
+par(las = 1,
+    bty = "l",
+    mar = c(3,3,2,1),
+    mgp = c(2,.7, 0),
+    tck = -.01)
+@
+
+<<echo = FALSE>>=
+op <- par()
+@
+
+\begin{document}
+
+\maketitle
+
+As we've seen in the previous lectures, the general linear model
+can accommodate multiple predictor variables at once, yielding
+{\bf multiple regression models} as opposed to simple regression models.
+Mathematically and computationally, nothing really changes when
+adding more predictor variables to the model: The model estimates
+the $\beta$ parameters by minimising the sum of squared residuals
+and inference is achieved by making assumptions about the distribution of the errors.
+Conceptually, however, multiple regression models often pose researchers
+a number of challenges. These mainly relate to the decision whether
+to include several predictor variables in the model and, relatedly,
+to how to interpret the estimated regression coefficients. Here, I don't use
+the verb `interpret' to refer to subject-matter interpretations, but to more
+basic statistical interpretations: What do all these numbers literally mean?
+Clearly, before we can lend subject-matter interpretations to the output
+of statistical models, we need to understand what they mean literally.
+
+In this lecture, we'll write simulations to illustrate the consequences
+of including several predictors in a handful of key scenarios.
+The following box anticipates the main insight.
+
+\begin{framed}
+\noindent \textbf{Causal relationships.}
+The parameter estimates that the general linear model produces
+first and foremost describe associations in the data.
+Often, however, researchers want to lend a causal interpretation to
+these associations.
+For instance, we're usually not content with finding out that the
+experimental group outperforms the control group on average -- we want
+to know whether the experimental group outperforms the control group
+on average \emph{because} they're the experimental group.
+
+{\bf Statistical tools cannot prove claims about causality.}
+This goes even for so-called causal models.
+But what we can do is make assumptions about the causal connections between
+our variables and reason about whether and how we can model these
+statistically. Whether these causal assumptions are reasonable
+is a subject-matter issue, not a statistical one.
+\end{framed}
+
+A useful tool when discussing assumptions about causal connections
+are {\bf directed acyclic graphs} (\textsc{dag}s). For an introduction
+to \textsc{dag}s, see \citet{Rohrer2018} and \citet{McElreath2020}.
+We will use \textsc{dag}s throughout this lecture to represent
+causal connections between variables ($x, y, z, \dots$). Throughout,
+we're interested in estimating the causal influence that $x$ exerts on $y$.
+Our guiding questions are, first, whether this is at all possible,
+and, second, if so, which variables we should include in the model.
+
+\section{Taking into account confounding variables}\label{sec:confoundingvariables}
+First, we consider the scenario shown in Figure \ref{fig:dag1}.
+We're interested in the causal influence of $x$ on $y$. However, it is possible
+that a third variable, $z$, influences both $x$ and $y$.
+If you want to, you can replace these abstract variable names by something more specific
+(e.g., $x = $ participation in a content- and language-integrated programme, 
+$y = $ proficiency in the target language, $z = $ the parents' socio-economic status).
+But I think it's ultimately more useful to embrace the abstraction,
+as this makes it clearer that the lessons drawn from this scenario are valid
+more generally.
+
+<<message = FALSE, fig.width=1, fig.height=1, out.width=".2\\textwidth", echo = FALSE, fig.cap="In this scenario, $z$ influences both $x$ and $y$. As a result, $z$ acts as a confounding variable if we're interested in the causal influence of $x$ on $y$.\\label{fig:dag1}">>=
+library(here)
+source(here("functions", "drawdag.R"))
+library(dagitty)
+dag1 <- dagitty("dag {
+   z -> x
+   z -> y
+   x -> y
+}")
+coordinates(dag1) <- list(
+  y = c(x = 1, y = 2, z = 0),
+  x = c(x = 0, y = 1, z = 1)
+)
+drawdag(dag1)
+@
+
+Nevertheless, we'll make this scenario a bit more concrete
+by fleshing out what the causal connections between the three variables are.
+To keep this simple, we'll assume that the $z$ variable was drawn from
+a normal distribution with mean 0 and standard deviation 1; but this isn't
+too important:
+\begin{align}
+z_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, 1^2). \nonumber
+\end{align}
+
+Next, we assume that a one-unit increase in the $z$ variable causes
+an increase of $1.2$ units in the $x$ variable. There is, however,
+some variability in the $x$ variable that is unrelated to $z$.
+We express this additional variability in an error term $\tau$,
+which we assume is also drawn from a normal distribution with mean 0 and 
+standard deviation 1:
+\begin{align}
+x_i &= 0 + 1.2\cdot z_i + \tau_i, \label{eq:dag1_x} \\
+\tau_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, 1^2). \nonumber
+\end{align}
+The numbers $1.2$ in the first line and $1$ in the second line were
+chosen arbitrarily -- you can play around with these numbers at home.
+The $0$ in the first line merely means that the mean of the $x$ variable
+is $0$, but little hinges on this.
+
+Additionally, we assume that the $y$ variable is described by the 
+equation below. The influence of $x$ on $y$ is such that a one-unit increase
+in $x$ leads to a $0.6$-unit increase in $y$. The $z$ variable, however, 
+has a negative causal effect on $y$, but we don't want to estimate this effect.
+Again, the numbers $5.2$, $0.6$ and $-1.3$ were chosen arbitrarily.
+\begin{align}
+y_i &= 5.2 + 0.6\cdot x_i - 1.3 \cdot z_i + \varepsilon_i, \label{eq:dag1} \\
+\varepsilon_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, 1^2). \nonumber
+\end{align}
+
+Let's now simulate a dataset with 100 observations of these three variables.
+If we don't specify any further parameters, the \texttt{rnorm(n)} call
+generates $n$ observations from a normal distribution with mean 0 and
+standard deviation 1:
+<<>>=
+library(tidyverse)
+library(here)
+
+n <- 100
+z <- rnorm(n)
+x <- 0 + 1.2*z + rnorm(n)
+y <- 5.2 + 0.6*x - 1.3*z + rnorm(n)
+d <- tibble(y, x, z)
+@
+
+In order to visualise the pairwise associations between several continuous
+variables at once, we can draw a scatterplot matrix. The file 
+\texttt{scatterplot\_matrix.R} in the \texttt{functions} directory
+defines a custom-made function for plotting
+scatterplot matrices. Let's read it in and plot the simulated data;
+see Figure \ref{fig:streudiagramm}.
+
+<<echo = FALSE>>=
+par(bty = "o")
+@
+
+<<fig.width = 5, fig.height = 5, out.width="0.5\\textwidth", fig.cap="A scatterplot matrix of the three simulated variables. The numbers in the lower triangle are Pearson correlation coefficients and the number of data pairs they are based on. The trend lines in the scatterplots in the upper triangle are scatterplot smoothers. For more information, see \\url{https://janhove.github.io/posts/2019-11-28-scatterplot-matrix/}.\\label{fig:streudiagramm}", cache = FALSE>>=
+source(here("functions", "scatterplot_matrix.R"))
+scatterplot_matrix(d)
+@
+
+We will now compare two strategies for analysing these simulated data.
+If we were analysing real data, we wouldn't do this -- we'd only run the analysis
+that makes most sense. But in this lecture, we want to use simulated data
+in order to find out what the most sensible strategy is.
+
+In the first model, we ignore the $z$ variable:
+<<>>=
+dag1.lm1 <- lm(y ~ x, data = d)
+summary(dag1.lm1)$coefficients
+@
+
+The resulting parameter estimates are to be interpreted in exactly the same
+way as explained in Lecture 2:
+\begin{itemize}
+  \item If we were to take a large number of observations for which all $x$ values were 0,
+  then, according to the model, we'd expect the mean of their $y$ values to be $5.14 \pm 0.13$.
+  
+  \item If we were to take a large number of observations for which all $x$ values were 1,
+  then, according to the model, their mean $y$ value is expected to be $0.06 \pm 0.09$ lower than that of the $x = 0$ group.
+\end{itemize}
+
+\emph{This interpretation is absolutely fine!}
+Note, however, that this interpretation
+does not involve any causal claims.
+
+In the second model, we include $z$ as a predictor:
+<<>>=
+dag1.lm2 <- lm(y ~ x + z, data = d)
+summary(dag1.lm2)$coefficients
+@
+
+These parameter estimates, too, are to be
+interpreted as outlined in Lecture 2:
+\begin{itemize}
+  \item If we were to take a large number of observations for which all $x$ \emph{and} $z$ 
+  values were 0,
+  then, according to the model, we'd expect the mean of their $y$ values to be $5.03 \pm 0.10$.
+  
+  \item If we were to take a large number of observations for which all $x$ values were 1
+  and all $z$ values were 0,
+  then, according to the model, their mean $y$ value is expected to be $0.63 \pm 0.11$ higher than that of the $x = 0, z = 0$ group.
+  
+  \item If we were to take a large number of observations for which all $x$ values were 0
+  and all $z$ values were 1,
+  then, according to the model, their mean $y$
+  value is expected to be $1.3 \pm 0.2$ lower than that of the $x = 0, z = 0$ group.
+\end{itemize}
+
+The second point does \emph{not} contradict the
+interpretation of the parameter estimates
+of the first model: Just because parameters
+with the same name occur in both models 
+(\texttt{(Intercept)}, \texttt{x}) doesn't
+mean that these have the same same interpretation.
+(Recall the Greek letter fallacy!)
+Specifically, the parameter estimates in the
+second model can only be interpreted correctly
+when taking into account the other variable in the model, $z$. Similarly, to interpret the
+parameter estimates in the first model, you must
+not implicitly assume a fixed value for the
+$z$ variable that was not included in the model.
+
+Now compare the parameter estimates of the
+second models with those in Equation \vref{eq:dag1}.
+The estimated parameters are quite close to the true parameters we used
+to generate the simulated data. In fact, the discrepancies between the
+estimates and the true values are purely due to chance.
+We can verify this by simulating lots of datasets using the same parameters
+as used in Equations \ref{eq:dag1_x} and \ref{eq:dag1}
+and analysing them in the same way as we did here.
+Below, we define the function 
+\texttt{generate\_dag1()}, which by default generates 10,000 such datasets,
+containing 100 observations each. Each dataset is analysed twice:
+Once without taking the $z$ variable into account,
+and once including this variable in the model.
+For each simulated dataset and each model, the estimated \texttt{x} parameter
+is extracted.
+
+<<>>=
+generate_dag1 <- function(
+  n = 100,          # number of observations per dataset
+  sims = 10000,     # number of datasets
+  z_x = 1.2,        # influence z -> x
+  x_y = 0.6,        # influence x -> y
+  z_y = -1.3,       # influence z -> y
+  baseline_y = 5.2  # baseline y
+) {
+  est_lm1 <- vector(length = sims)
+  est_lm2 <- vector(length = sims)
+
+  for (i in 1:sims) {
+    z <- rnorm(n)
+    x <- z_x*z + rnorm(n)
+    y <- baseline_y + x_y*x + z_y*z + rnorm(n)
+    mod.lm1 <- lm(y ~ x)
+    mod.lm2 <- lm(y ~ x + z)
+    est_lm1[[i]] <- coef(mod.lm1)[[2]]
+    est_lm2[[i]] <- coef(mod.lm2)[[2]]
+  }
+
+  tibble(`Model 1` = est_lm1,
+         `Model 2` = est_lm2))
+}
+@
+
+The code below runs this function using the default settings
+and then plots the estimated parameters obtained by both models;
+Figure \ref{fig:schätzung_dag1}.
+<<cache = TRUE, out.width = "0.7\\textwidth", fig.height = 1.2*2.3, fig.width = 1.2*4.8, fig.cap="Model 1 does not estimate the causal effect of $x$ on $y$ in an unbiased way. Depending on the parameter values chosen in Equations \\ref{eq:dag1_x} and \\ref{eq:dag1}, the bias could be an overestimate or, like here, an underestimate. Model 2, by contrast, does provide an unbiased estimate of the effect of $x$ on $y$: On average, the estimated parameter values correspond exactly to the true parameter value.\\label{fig:schätzung_dag1}">>=
+est_dag1 <- generate_dag1()
+
+est_dag1 |>
+  pivot_longer(cols = everything(),
+               names_to = "Model",
+               values_to = "Estimate") |>
+  ggplot(aes(x = Estimate)) +
+  geom_histogram(bins = 50,
+                 fill = "grey", colour = "black") +
+  geom_vline(xintercept = 0.6, linetype = "dashed") +
+  facet_grid(cols = vars(Model)) +
+  xlab("Estimate x → y") +
+  ylab("Number")
+@
+
+This simulation confirms that the second model yields an unbiased estimate
+of the causal effect of $x$ on $y$ ($0.6$), but the first doesn't:
+<<>>=
+apply(est_dag1, 2, mean)
+@
+
+  The model without the confounding variable ($z$) isn't wrong.
+  If you want to estimate the average difference in the $y$ variable
+  between groups differing in $x$, this is the model you need.
+  But if we assume the causal structure shown in Figure \ref{fig:dag1},
+  we cannot interpret its parameter estimates causally.
+
+It seems clear what conclusion we ought to draw from the considerations
+above: If confounding variables are at play and you want to make
+causal claims, you need to include these confounders in the analysis.
+In practice, however, things aren't so simple.
+\begin{itemize}
+  \item We may not know all confounders or we may not have been able to
+  measure all of them.
+  
+  \item Even if we did measure the confouders, we probably didn't measure
+  them perfectly.
+  
+  \item It is possible that the confounders exert some nonlinear influence,
+  whereas we only considered linear effects.
+\end{itemize}
+
+In the exercises below, you explore the first two complicating factors.
+To anticipate the take-home message:
+
+\mypar{Tip}
+{\bf Don't pin your hopes on statistical tools to neutralise the effect of confounding variables.}
+This would require you to have perfectly measured all confounders and to have
+specified the functional form of their causal effects correctly.
+{\bf Statistical tools are no substitute for a solid research design that neutralises confounders.}
+\parend
+
+\mypar[Unknown confounders]{Exercise}
+In Figure \ref{fig:dag1_aufgabe1}, one confounder, $u$, was added to our 
+\textsc{dag}, but for some reason, it wasn't measured. We assume that the
+following causal relationships are at play:
+\begin{align*}
+z_i &\sim \textrm{Normal}(0, 1^2),  \\
+u_i &\sim \textrm{Normal}(0, 1^2), \\
+x_i &= 0 + 1.2\cdot z_i + 0.9\cdot u_i + \tau_i, \\
+y_i &= 5.2 + 0.6\cdot x_i - 1.3 \cdot z_i + 2.5\cdot u_i + \varepsilon_i,\\
+\tau_i &\sim \textrm{Normal}(0, 1^2),  \\
+\varepsilon_i &\sim \textrm{Normal}(0, 1^2).
+\end{align*}
+We can generate a dataset governed by these equations that contains 50 observations as follows.
+Note while we simulate the $u$ variable, we don't add it to the dataset since it
+wasn't measured.
+<<>>=
+n <- 50
+z <- rnorm(n)
+u <- rnorm(n)
+x <- 0 + 1.2*z + 0.9*u + rnorm(n)
+y <- 5.2 + 0.6*x - 1.3*z + 2.5*u + rnorm(n)
+d <- tibble(y, x, z)
+@
+ 
+<<message = FALSE, fig.width=1, fig.height=1, out.width=".2\\textwidth", echo = FALSE, fig.cap="The confounder $z$ was measured; the confounder $u$ wasn't.\\label{fig:dag1_aufgabe1}">>=
+dag1 <- dagitty("dag {
+   z -> x
+   z -> y
+   x -> y
+   u -> x
+   u -> y
+   u[unobserved]
+}")
+coordinates(dag1) <- list(
+  y = c(x = 2, y = 2, z = 0, u = 0),
+  x = c(x = 0, y = 1, z = 1, u = 0)
+)
+drawdag(dag1)
+@
+While we cannot include $u$ in the model, we can include $z$:
+<<>>=
+exercise1.lm <- lm(y ~ x + z, data = d)
+summary(exercise1.lm)$coefficients
+@
+\begin{enumerate}
+  \item Explain what the parameter estimate for \texttt{x} literally means.
+
+  \item Adapt the \texttt{generate\_dag1()} function and show that the \texttt{exercise1.lm}
+  model does not provide an unbiased estimate of the causal effect of $x$ on $y$, even though
+  it includes the measured confounder $z$.
+
+  \item Would more data help solve this problem? Justify your answer by means of a simulation
+  in which each dataset features 200 instead of 50 observations. \parend
+\end{enumerate}
+
+\mypar[Measurement error on the confounder]{Exercise}
+Figure \ref{fig:dag1_aufgabe2} depicts another scenario
+where $z$ confounds the causal relationship between $x$ and $y$.
+This time, however, we didn't measure $z$ itself. Instead, we
+obtained an {\bf indicator} $z_m$ of $z$.
+This indicator represents the {\bf construct} $z$ imperfectly.
+This is quite usual: constructs such as working memory capacity,
+L2 writing skills, L1 vocabulary knowledge, intelligence, socioeconomic status
+etc., cannot be observed directly and have to be inferred from test
+results, questionnaire responses etc.
+It is therefore crucial to understand the effect of measurement error
+on statistical control.
+
+We assume that the same causal links are at play as earlier.
+The only difference is that we include $z_m$ instead of $z$ in the dataset.
+To construct $z_m$, we take the values of $z$ and add some Gaussian noise to
+it (from a normal distribution with mean 0 and standard deviation 0.3).
+\begin{align}
+z_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
+z_{m,i} &= z_i + \psi_i, \nonumber \\
+x_i &= 0 + 1.2\cdot z_i + \tau_i, \nonumber \\
+y_i &= 5.2 + 0.6\cdot x_i - 1.3 \cdot z_i + \varepsilon_i, \nonumber \\
+\psi_i &\sim \textrm{Normal}(0, 0.3^2), \label{eq:dag1_aufgabe2}\\
+\tau_i &\sim \textrm{Normal}(0, 1^2),  \nonumber \\
+\varepsilon_i &\sim \textrm{Normal}(0, 1^2). \nonumber
+\end{align}
+
+<<message = FALSE, fig.width=1, fig.height=1, out.width=".2\\textwidth", echo = FALSE, fig.cap="The $z$ variable confounds the causal relationship between $x$ and $y$, but it wasn't measured directly. Instead, we need to make do with a proxy variable $z_m$ that captures $z$ imperfectly.\\label{fig:dag1_aufgabe2}">>=
+dag1 <- dagitty("dag {
+   z -> x
+   z -> y
+   x -> y
+   z[unobserved]
+   z -> z_m
+}")
+coordinates(dag1) <- list(
+  y = c(x = 2, y = 2, z = 0, z_m = 0),
+  x = c(x = 0, y = 1, z = 0, z_m = 1)
+)
+drawdag(dag1)
+@
+
+Let's simulate the data.
+<<>>=
+n <- 50
+z <- rnorm(n)
+z_m <- z + rnorm(n, sd = 0.3)
+x <- 0 + 1.2*z + rnorm(n)
+y <- 5.2 + 0.6*x - 1.3*z + rnorm(n)
+d <- tibble(y, x, z_m)
+@
+
+This time, we include $z_m$ in the analysis:
+<<>>=
+exercise2.lm <- lm(y ~ x + z_m, data = d)
+summary(exercise2.lm)$coefficients
+@
+
+\begin{enumerate}
+  \item Explain what the parameter estimate for \texttt{x} literally means.
+  
+  
+  \item Adapt the \texttt{generate\_dag1()} function and show that the \texttt{exercise2.lm}
+  model does not provide an unbiased estimate of the causal effect of $x$ on $y$, even though
+  it includes an indicator of the confounder (i.e., $z_m$).
+  
+  \item Would more data help solve this problem? Justify your answer by means of a simulation
+  in which each dataset features 200 instead of 50 observations.
+  
+  \item Would it be better not to take into account the confounder at all? That is, should
+  we just fit the model without the indicator of $z$?
+  
+  \item What would happen if we had a more reliable indicator for $z$?
+  To answer this question, rerun your simulation but use a standard deviation of $0.1$
+  instead of $0.3$ for $\psi$ in Equation \ref{eq:dag1_aufgabe2}. \parend
+\end{enumerate}
+
+\section{Control variables in randomised experiments}\label{sec:controlvariables}
+In Section \ref{sec:confoundingvariables}, we discussed a scenario in which $z$
+causally affects both $x$ and $y$. This scenario is typical for observational (or correlational)
+studies and quasi-experiments. In the present section, we turn our attention
+to randomised experiments, that is, experiments in which the values of $x$
+are manipulated by the researchers based on random assignment.
+To reflect this, the $x$ variable is represented as $x_r$ in Figure \ref{fig:dag2}  
+($r$ for \textit{randomised}).
+A typical example for the more abstract scenario we consider here are experiments
+in which participants are randomly assigned to the experiments' conditions.
+In this case, $x$ would be a categorical variable.
+But without any loss of generality, we can restrict our discussion to a continuous $x$.
+This makes the simulations a bit easier; it doesn't affect the conclusions we will draw.
+The $z$ variable would then be a variable that we're not really interested it
+but of which we suspect that it correlates with the outcome, $y$.
+The textbook case is a pretest/posttest experiment, where $x$ represents the experimental 
+condition, $z$ the pretest performance, and $y$ the posttest performance.
+
+<<message = FALSE, fig.width=1, fig.height=1, out.width=".2\\textwidth", echo = FALSE, fig.cap="In this scenario, the values of $x$ were assigned randomly and independently of $z$. This is typical of experiments in which the participants are randomly assigned to the conditions.\\label{fig:dag2}">>=
+dag2 <- dagitty("dag {
+   z -> y
+   x_r -> y
+}")
+coordinates(dag2) <- list(
+  y = c(x_r = 1, y = 2, z = 0),
+  x = c(x_r = 0, y = 1, z = 1)
+)
+drawdag(dag2)
+@
+
+We assume that the causal links between the variables are described 
+by the following equations:
+\begin{align}
+x_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
+z_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
+y_i &= 5.2 + 0.3\cdot x_i + 0.9 \cdot z_i + \varepsilon_i, \label{eq:dag2} \\
+\varepsilon_i &\sim \textrm{Normal}(0, 1^2). \nonumber
+\end{align}
+
+<<echo = FALSE>>=
+set.seed(1234)
+@
+
+
+Let's simulate a dataset conforming to these equations:
+<<>>=
+n <- 100
+x <- rnorm(n)
+z <- rnorm(n)
+y <- 5.2 + 0.3*x + 0.9*z + rnorm(n)
+d <- tibble(y, x, z)
+@
+
+<<eval = FALSE>>=
+# Not shown in script
+scatterplot_matrix(d)
+@
+
+We again fit one model with and one model without $z$.
+Both models yield similar though different estimates
+for the \texttt{x} parameter: $0.35 \pm 0.14$ and $0.38 \pm 0.10$.
+<<>>=
+dag2.lm1 <- lm(y ~ x, data = d)
+summary(dag2.lm1)$coefficients
+
+dag2.lm2 <- lm(y ~ x + z, data = d)
+summary(dag2.lm2)$coefficients
+@
+The simulations below will confirm that \emph{both} models yield
+unbiased estimates of the causal influence of $x$ on $y$.
+By this standard, neither model is bad. That said, if we have the $z$ variable
+at our disposal, the second model is to be preferred. The reason for this
+will become clearer once we've simulated a couple of thousand datasets.
+To this end, we could write a new function, \texttt{generate\_dag2()},
+but we can also just use  \texttt{generate\_dag1()} and set the 
+parameter value of \texttt{z\_x} to $0$:
+
+<<cache = TRUE>>=
+est_dag2 <- generate_dag1(x_y = 0.3, z_y = 0.9, z_x = 0)
+@
+
+As shown in Figure \ref{fig:schätzung_dag2},
+both models yield unbiased estimates of the causal influence of
+$x$ on $y$ in Equation \ref{eq:dag2}. But these estimates vary less from sample
+to sample in model 2, that is, on average, they are closer to the true parameter
+value than the estimates that model 1 yields.
+
+<<cache = TRUE, out.width = "0.7\\textwidth", fig.height = 1.2*2.3, fig.width = 1.2*4.8, fig.cap="Both models yield unbiased estimates of the causal influence of $x$ on $y$ (0.3). But these estimates vary less from sample to sample in the second model than in the first model. In other words, on average, the second model yields more precise estimates.\\label{fig:schätzung_dag2}">>=
+est_dag2 |>
+  pivot_longer(cols = everything(),
+               names_to = "Model",
+               values_to = "Estimate") |>
+  ggplot(aes(x = Estimate)) +
+  geom_histogram(bins = 50,
+                 fill = "grey", colour = "black") +
+  geom_vline(xintercept = 0.3, linetype = "dashed") +
+  facet_grid(cols = vars(Model)) +
+  xlab("Estimate x → y") +
+  ylab("Number")
+@
+
+We can check this numerically. The means of the estimates in both models
+corresponds to the true value (making allowance for simulation error). But compared to the estimates by the first model,
+the standard deviation of the estimates by the second model is about 25\% lower.
+<<>>=
+apply(est_dag2, 2, mean)
+apply(est_dag2, 2, sd)
+@
+
+What's happened here is that by including the $z$ variable in the model 
+-- even though it doesn't act as a confounder for the causal link between $x$ and $y$ --
+we have reduced the error variance and have hence increased the precision of our estimate.
+So even if you don't actually care about $z$, it can pay dividends to still collect
+it and include it in your analysis.
+
+\mypar[Choosing control variables]{Tip} When designing an experiment,
+one or two additional variables that you
+strongly suspect to be correlated with the outcome may be useful, particularly
+if they're not too strongly related to each other. 
+Such variables typically are \emph{so} obviously related to the outcome that they
+are completely uninteresting in and of themselves (e.g., pretest performance).
+But don't collect umpteen
+additional variables on the off-chance that they might be related to the outcome
+and help you reduce the error variance. Moreover, the decision whether or not to
+include some additional variable in your analysis should be taken \emph{before}
+you analyse your data -- don't run multiple models and then report the one
+that works `best'. You completely invalidate your inferential results this way.
+\parend
+
+\mypar[A pretest/posttest experiment (Part I)]{Exercise}
+The data for this exercise stem from a study by \citet{Hicks2021}.
+She investigate how well 260 children could learn German--English cognates.
+There were three waves of data collection: T1, T2, and T3.
+After the first wave, an intervention was undertaken with 120 of the children,
+the goal of which was to impart to them a greater awareness of cognate correspondences.
+The other 140 children served as the control group.
+Here we're interested in the question if the intervention bore fruit,
+that is, that children who took part in the intervention were better able to learn
+German--English cognates.
+
+For the time being, we'll pretend that the assignment of children to experimental condition
+was done at random and on an individual basis.
+We're interested in the T3 data (\rcode{T3cog}); the pretest scores from T1 serve as the control variable (\rcode{T1cog});
+we ignore the T2 data.
+
+Read in the data, retaining just the columns that we actually need:
+<<eval = FALSE>>=
+hicks <- read_csv(here("data", "hicks2021.csv")) |>
+  select(ID, Class, Group, T1cog, T3cog)
+@
+
+One option to visualise these data is to draw a scatterplot with
+the pretest scores along the $x$-axis and the posttest scores along the $y$-axis
+and with different colours depending on the experimental condition.
+Further, regression lines for both subsets can be added:
+<<eval = FALSE>>=
+ggplot(hicks,
+       aes(x = T1cog, y = T3cog,
+           colour = Group)) +
+  geom_point(shape = 1) +
+  geom_smooth(se = FALSE, method = "lm") +
+  xlab("Pretest score") +
+  ylab("Posttest score")
+@
+Based on this plot, how would you answer the research question? What aspect of the visualisation did you base your answer on?
+
+Now fit a linear model of the form \rcode{outcome ~ condition + control}.
+Don't forget to create a dummy variable for the condition variable.
+Interpret the model in terms of the research question.
+\parend
+
+\mypar[A pretest/posttest experiment (Part II)]{Exercise}
+  The children in the study by \citet{Hicks2021} were pupils in classes.
+  They were assigned to the experiment's conditions in whole classes rather than on an individual basis.
+  This induces a dependency between different data points,
+  threatening the validity of the inferential results obtained in the
+  previous part of the exercise.
+  
+  There are a couple of possible solutions to this problem \citep[see][for a comparison]{Vanhove2020c}.
+  The easiest -- and possibly the best -- is to compute the 
+  mean pretest and mean posttest score for each cluster (class)
+  and run the analysis using these averages instead.
+  That is, assuming you named the dummy variable \rcode{n.Group}:
+<<eval = FALSE>>=
+hicks_byclass <- hicks |> 
+  group_by(n.Group, Class) |> 
+  summarise(mean_T1 = mean(T1cog),
+            mean_T3 = mean(T3cog))
+byclass.lm <- lm(mean_T3 ~ n.Group + mean_T1, hicks_byclass)
+@
+  Interpret the output in terms of the research question.
+  How would you report the finding in an article?
+  Focus only on what's important.
+\parend
+
+\mypar[A pretest/posttest experiment (Part III)]{Exercise}
+  In Part II, we still assumed that random assignment was used -- but on the level of the classes rather than on the level of the individual pupils.
+  Look up in Hicks' article how the children were actually assigned to the different conditions.
+  Briefly discuss plausible consequences.
+\parend
+
+\section{Posttreatment variables}
+We now briefly turn our attention to scenarios where $z$ is a posttreatment variable.
+In the context of a randomised experiment with $x$ as the predictor of interest,
+this means that $z$ was collected \emph{after} the randomisation. As a consequence,
+$z$ may be influenced by $x$.
+
+\paragraph{Mediators.}
+First consider the \textsc{dag} in Figure \ref{fig:dag3}. Notice that there are
+two causal paths from $x$ to $y$: one is direct ($x \rightarrow y$),
+one is {\bf mediated} by $z$ ($x \rightarrow z \rightarrow y$).
+A dataset conforming to this \textsc{dag} can be simulated as follows:
+
+<<message = FALSE, fig.width=2, fig.height=1, out.width=".4\\textwidth", echo = FALSE, fig.cap="\\label{fig:dag3}">>=
+dag3 <- dagitty("dag {
+   x -> y
+   x -> z
+   z -> y
+}")
+coordinates(dag3) <- list(
+  y = c(x = 0, y = 0, z = 1),
+  x = c(x = 0, y = 2, z = 1)
+)
+drawdag(dag3)
+@
+
+<<>>=
+n <- 200
+x <- rnorm(n)
+z <- 0.4*x + rnorm(n)
+y <- 0.6*x + 1.2*z + rnorm(n)
+d <- tibble(x, y, z)
+@
+
+What's the causal influence of $x$ on $y$? That is, if you increase $x$ by
+one unit, what change in $y$ does this cause?
+
+The answer to this question is \emph{not} $0.6$ units. While the direct 
+causal effect of $x$ on $y$ is indeed such that a one-unit increase
+results in a $0.6$-unit increase in $y$, $x$ also influences $y$ via $z$.
+A one-unit increase in $x$ results in a $0.4$-unit increase in $z$;
+and a one-unit increase in $z$ results in a $1.2$-unit increase in $y$.
+So in addition to the $0.6$-unit increase that a one-unit increase
+in $x$ causes directly in $y$, it also results in a $0.4 \cdot 1.2 = 0.48$-unit
+increase via $z$, for a total causal effect of $0.6 + 0.48 = 1.08$ units
+increase in $y$ per one-unit increase in $x$!
+
+If we want to estimate the total causal influence of $x$ on $y$, we shouldn't
+close any causal paths going from $x$ to $y$ by controlling for $z$,
+that is, we should fit a simple regression model that does \emph{not} include $z$.
+If, however, we want to estimate the causal effect of $x$ on $y$ that is not
+mediated by $z$, then we \emph{do} need to control for $z$.
+Which model you want to run depends entirely on what you want to estimate.
+
+<<>>=
+total.lm <- lm(y ~ x, data = d)
+direct.lm <- lm(y ~ x + z, data = d)
+summary(total.lm)$coefficients[, 1:2]
+summary(direct.lm)$coefficients[, 1:2]
+@
+
+\paragraph{Colliders.}
+Now consider the \textsc{dag} in Figure \ref{fig:dag6}.
+Here, both $x$ and $y$ causally affect $z$ ($x \rightarrow z \leftarrow y$).
+A variable in which two or more causal variables clash together is known 
+as a {\bf collider}. In a sense, colliders are the opposite of confounders:
+As long as colliders are \emph{not} controlled for, their presence
+does not bias the causal estimates of interest. But once they are
+controlled for, they may bias these causal estimates.
+
+<<message = FALSE, fig.width=2, fig.height=1, out.width=".4\\textwidth", echo = FALSE, fig.cap="\\label{fig:dag6}">>=
+dag6 <- dagitty("dag {
+   x -> y
+   x -> z
+   y -> z
+}")
+coordinates(dag6) <- list(
+  y = c(x = 0, y = 0, z = 1),
+  x = c(x = 0, y = 2, z = 1)
+)
+drawdag(dag6)
+@
+
+By way of example, let's assume the data are generated following these
+equations:
+\begin{align}
+x_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
+y_i &= 0.4x_i + \varepsilon_i, \nonumber \\
+z_i &= 0.5x_i + 0.8y_i + \tau_i, \nonumber \\
+\varepsilon_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
+\tau_i &\sim \textrm{Normal}(0, 1^2).\nonumber
+\end{align}
+
+The function \texttt{generate\_posttreatment()} is a slight
+adaptation of \texttt{generate\_dag1()}.
+<<>>=
+generate_posttreatment <- function(
+  n = 100,      # number of observations per dataset
+  sims = 10000, # number of datasets
+  x_y = 0.4,    # influence x -> y
+  x_z = 0.5,    # influence x -> z
+  y_z = 0.8     # influence y -> z
+) {
+  est_lm1 <- vector(length = sims)
+  est_lm2 <- vector(length = sims)
+
+  for (i in 1:sims) {
+    x <- rnorm(n)
+    y <- x_y*x + rnorm(n)
+    z <- x_z*x + y_z*y + rnorm(n)
+    mod.lm1 <- lm(y ~ x)
+    mod.lm2 <- lm(y ~ x + z)
+    est_lm1[[i]] <- coef(mod.lm1)[[2]]
+    est_lm2[[i]] <- coef(mod.lm2)[[2]]
+  }
+
+  tibble(`Model 1` = est_lm1,
+         `Model 2` = est_lm2)
+}
+@
+As this simulation shows, the model without the collider ($z$)
+is able to estimate the causal effect of $x$ on $y$ ($0.4$) in an unbiased way.
+The estimates for the model with the collider, by contrast, are biased.
+<<cache = TRUE>>=
+est_collider <- generate_posttreatment()
+apply(est_collider, 2, mean)
+@
+
+Note again, though, that the model with the collider is well-suited if you
+want to estimate the mean difference in the $y$ variable between two groups
+that differ in the $x$ variable but whose $z$ values are all the same.
+As always, whether the model is justified depends on what you want to find
+out and on your assumptions.
+
+It also bears pointing out that colliders are sometimes inadvertently controlled for
+during the design stage. See \citet{Rohrer2018} for more on this important topic.
+
+\paragraph{Miscellaneous.}
+In the \textsc{dag} in Figure \ref{fig:dag4}, $z$ is also a posttreatment
+variable. This time, however, it is only indirectly influenced by $x$.
+In order to check whether it would be best to include $z$ as a variable
+in the model, let's assume the following equations describe the causal links
+between the variables:
+\begin{align}
+x_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
+y_i &= 0.4x_i + \varepsilon_i, \nonumber \\
+z_i &= y_i + \tau_i, \nonumber \\
+\varepsilon_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
+\tau_i &\sim \textrm{Normal}(0, 1^2).\nonumber
+\end{align}
+
+<<message = FALSE, fig.width=2, fig.height=1, out.width=".4\\textwidth", echo = FALSE, fig.cap="\\label{fig:dag4}">>=
+dag4 <- dagitty("dag {
+   x -> y
+   y -> z
+}")
+coordinates(dag4) <- list(
+  y = c(x = 0, y = 0, z = 0),
+  x = c(x = 0, y = 1, z = 2)
+)
+drawdag(dag4)
+@
+
+We can reuse the \texttt{generate\_posttreatment()} function and just
+specify the new parameter values. Note that, again, the model without
+the additional variable provides an unbiased estimate of the causal
+effect of $x$ on $y$, whereas the model with this additional variable doesn't.
+<<cache = TRUE>>=
+est_proxy_y <- generate_posttreatment(x_y = 0.4, x_z = 0, y_z = 1)
+apply(est_proxy_y, 2, mean)
+@
+In the scenario depicted in Figure \ref{fig:dag4}, including the additional
+variable will bias the estimate of interest towards zero. By spelling out
+what the literal meaning is of the estimated parameter for \texttt{x}
+in the second model, you should see why this is the case.
+
+The situation is only slightly different in the scenario depicted
+in Figure \ref{fig:dag5}. Here, $z$ is directly affected by $x$, but not
+by $y$. We'll simulate datasets conforming to the following equations:
+\begin{align}
+x_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
+y_i &= 0.4x_i + \varepsilon_i, \nonumber \\
+z_i &= x_i + \tau_i, \nonumber \\
+\varepsilon_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
+\tau_i &\sim \textrm{Normal}(0, 1^2).\nonumber
+\end{align}
+
+
+<<message = FALSE, fig.width=2, fig.height=1, out.width=".4\\textwidth", echo = FALSE, fig.cap="\\label{fig:dag5}">>=
+dag5 <- dagitty("dag {
+   x -> y
+   x -> z
+}")
+coordinates(dag5) <- list(
+  y = c(x = 0, y = 0, z = 1),
+  x = c(x = 0, y = 2, z = 0)
+)
+drawdag(dag5)
+@
+
+
+As the simulation results show, both models yield unbiased estimates of the
+causal effect of $x$ on $y$. But notice that the estimates vary more from
+sample to sample for the second model than for the first. So a given estimate
+resulting from the model without the additional variable is more likely to be
+closer the actual parameter value than a given estimate resulting from the 
+model with the additional variable. It's hard to imagine a research question
+where the second model would be preferred in this scenario.
+<<cache = TRUE>>=
+est_proxy_x <- generate_posttreatment(x_y = 0.4, x_z = 1, y_z = 0)
+apply(est_proxy_x, 2, mean)
+apply(est_proxy_x, 2, sd)
+@
+
+In sum, including posttreatment variables as predictors in the analysis
+is usually a bad idea. In randomised experiments, there luckily exists a
+simple trick for preventing that the predictors you include in the model
+are posttreatment variables: Just collect the predictors before carrying out the
+intervention!
+
+\mypar{Exercise}
+\citet{Vanhove2019} had 1,000 short French texts written by children
+  rated for their lexical diversity on a 9-point scale
+  by between 2 and 18 raters each. 
+  For the purposes of this exercise, we're interested in modelling
+  these human ratings in terms of the length of the text (the logarithmically
+  transformed number of tokens (using base 2), \texttt{log2\_ntokens}) and the type--token
+  ratio (\texttt{TTR}), an easily computed metric of a text's lexical diversity.
+<<>>=
+d <- read_csv(here("data", "text_ratings.csv"))
+lexdiv.lm <- lm(mean_rating ~ log2_ntokens + TTR, data = d)
+summary(lexdiv.lm)$coefficients
+@
+  \begin{enumerate}
+    \item (Paper and pencil.) For each claim, decide whether it is correct.
+    Justify your answers.
+    \begin{itemize}
+          
+      \item The model output shows that human raters are sensitive to differences
+      in the type--token ratio when ratings texts for their lexical diversity.
+    
+      \item The model output shows that there is a positive linear relationship
+      between the TTR values and the mean ratings: Texts with higher TTR values
+      tend to receive higher ratings than texts with lower TTR values.
+      
+    \end{itemize}
+    
+    \item (With R.) Draw a scatterplot matrix of these variables and revise
+    your answer to the previous question if needed.
+    
+    \item (Paper and pencil.) Explain what each of the three
+    estimated model parameters literally means.
+    
+    \item (Paper and pencil.) According to this model, what mean rating
+    would you expect for a text consisting of 64 tokens with a TTR of 0.7? \parend
+  \end{enumerate}
+
+\section*{Summary and recommendations}
+\begin{itemize}
+  \item A multiple regression model is not just multiple simple regressions
+  run at once. The meaning of the parameter estimates changes if you add
+  or remove predictors to or from the model. Also see \citet{Morrissey2018} 
+  and \citet{Vanhove2021}.
+  
+  \item The decision which predictors to include in a model depends on what it
+  is exactly you want to estimate and how you think different variables may
+  be causally related. In my experience, people's difficulties with regression
+  models aren't so much statistical in nature as due to their not having worked
+  out what they actually want to find out.
+  
+  \item Know what the literal meaning of the estimated model parameters is
+  before you interpret them in terms of the subject matter.
+  
+  \item As shown in the exercises, plots of the actual data may help prevent
+  both you and your readership from interpreting the model output incorrectly.
+\end{itemize}
+
+\mypar{Exercise}
+Consider Figure \ref{fig:complexdag1}. Assume that you want to
+  obtain an unbiased and maximally precise estimate
+  the total causal effect of $x$ on $y$ and that all relationships shown
+  are linear and additive. Which variables would you include in a general
+  linear model as predictors? Justify your answer.
+  
+<<message = FALSE, fig.width=4, fig.height=2, out.width=".6\\textwidth", echo = FALSE, fig.cap="\\label{fig:complexdag1}">>=
+complexdag1 <- dagitty("dag {
+   a -> x
+   b -> x
+   b -> y
+   x -> c
+   c -> y
+   y -> d
+   e -> y
+}")
+coordinates(complexdag1) <- list(
+  x = c(a = 0, x = 1, b = 2, c = 2, y = 3, d = 4, e = 3),
+  y = c(a = 1, x = 1, b = 0, c = 2, y = 1, d = 1, e = 0)
+)
+drawdag(complexdag1)
+@
+\parend
+
+\mypar{Exercise}
+Same question for Figure \ref{fig:complexdag2}.\parend
+  
+<<message = FALSE, fig.width=4, fig.height=2, out.width=".6\\textwidth", echo = FALSE, fig.cap="\\label{fig:complexdag2}">>=
+complexdag2 <- dagitty("dag {
+   a -> x
+   x -> b
+   y -> b
+   x -> c
+   c -> y
+   y -> d
+   e -> y
+}")
+coordinates(complexdag2) <- list(
+  x = c(a = 0, x = 1, b = 2, c = 2, y = 3, d = 4, e = 3),
+  y = c(a = 1, x = 1, b = 0, c = 2, y = 1, d = 1, e = 0)
+)
+drawdag(complexdag2)
+@
+
+\mypar{Exercise}
+Let's say that instead of merely observing and measuring all the
+  variables in Figure \ref{fig:complexdag1}, we devise a randomised
+  experiment in which we randomly assign the participants to values of $x$.
+  \begin{enumerate}
+    \item Draw the updated \textsc{dag}.
+    \item Which predictors would you in the general linear model now?
+          Justify your answer. \parend
+  \end{enumerate}
+
+\section*{Further reading}
+On the limits of statistical control in observational
+studies, see \citet{Christenfeld2004}, \citet[][Part VII]{Huitema2011}
+and \citet{Westfall2016}.
+On the utility of statistical control in randomised experiments, 
+see \citet{Vanhove2015} and references therein.
+For an accessible introduction to \textsc{dag}s,
+confounders and colliders, see \citet{Rohrer2018}.
+
+\bibliographystyle{../../../unified}
+\bibliography{../../../bibliography}
+
+\end{document}
