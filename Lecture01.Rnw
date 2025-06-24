@@ -20,6 +20,18 @@
 \newcommand{\glm}{\textsc{glm}}
 \DeclareMathOperator*{\argmax}{arg\,max}
 \DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\K}{\mathbb{K}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\Cov}{\textrm{Cov}}
+\newcommand{\Var}{\textrm{Var}}
+\newcommand{\T}{^{\top}}
+\newcommand{\eqd}{\stackrel{d}{=}}
 
 % Abbildungen und Tabellen
 \usepackage{graphicx}
@@ -48,6 +60,12 @@
     \quad\hbox{#1}%
 }
 
+% Terms
+\newcommand{\term}[1]{\textbf{#1}}
+
+% Inline R
+\newcommand{\rcode}[1]{\texttt{#1}}
+
 % Referenzen
 \usepackage[sort]{natbib}
 
@@ -58,10 +76,10 @@
 \usepackage{hyperref}
 \usepackage{varioref}
 
-\title{The general linear model -- Lecture 1\\Nuts and bolts}
+\title{The general linear model\\ Lecture 1 -- Nuts and bolts}
 \author{Jan Vanhove\\{\small \url{https://janhove.github.io}}}
 
-\date{Ghent, 15--17 July 2024}
+\date{Ghent, 14--16 July 2025}
 
 % KNITR options -----------------------------------
 <<setup, include=FALSE, cache=FALSE>>=
@@ -134,6 +152,9 @@ are the following:
 \begin{itemize}
   \item Students are able to explain the {\bf literal meaning} of the parameter estimates
         in the output of general linear models.
+        If you don't know the literal meaning of these numbers,
+        interpreting them in terms of the subject matter (e.g., what these
+        results mean for second-language learning) is fraught with danger.
   
   \item They know how to obtain {\bf uncertainty estimates} about
         these parameter estimates under different sets of assumptions.
@@ -147,20 +168,16 @@ are the following:
 Time willing, we'll also take a look at the logistic model.
 
 \section*{Prerequisites}
-I used R version 4.3.0 when writing this script in 2023 and version 4.4.1
+I used R version 4.3.0 when writing this script in 2023 and version 4.5.1
 when editing it for this year's summer school.
-I use the tidyverse package throughout
-(version 2.0.0) in order to draw graphs and work
-comfortably with data sets. Additionally, I use the
-\texttt{here()} function from the here package (version 1.0.1).
+I use the \rcode{tidyverse} package throughout (version 2.0.0) 
+in order to draw graphs and work comfortably with data sets. 
+Additionally, I use the \rcode{here()} function 
+from the \rcode{here} package (version 1.0.1).
 
 If you want to use the exact same commands as in this script,
-you'll need to create a project in RStudio (\texttt{File > New Project\dots}).
-In your project directory, create a subdirectory named \texttt{data}.
-The datasets we'll be working with are available from the course module's
-website as well as from \url{https://github.com/janhove/GeneralLinearModel}.
-Put them in the \texttt{data} subdirectory.
-Next, create a subdirectory named \texttt{functions} and put the \texttt{scatterplot\_matrix.R} file in it.\footnote{Alternatively, you can clone the GitHub repository.}
+you'll need to create a project in RStudio.
+Please follow the instructions on \url{https://github.com/janhove/GeneralLinearModel}.
 
 \section{Another look at the mean}
 \citet{DeKeyser2010} administered a 204-item 
@@ -170,7 +187,7 @@ The authors were interested in gauging the relationship
 between the participants' performance on the \textsc{gjt}
 and the age at which they had started to learn Hebrew
 (age of acquisition, \textsc{aoa}). 
-We'll look at this relationship shortly. 
+We'll look at this relationship in the next lecture. 
 But first, we'll use their data set in order to introduce a few core concepts 
 that we will make use of throughout this lecture series.
 
@@ -182,14 +199,18 @@ Instead, focus on the code's logic and take notes.
 Work through the R code at your own pace -- after the lecture.
 \parend
 
-Let's load the tidyverse and here packages and read
-in the data set.\label{data:dekeyser} 
+Let's load the \rcode{tidyverse} and \rcode{here} packages 
+and read in the data set.\label{data:dekeyser} 
 Incidentally, when you run these commands, you may see a few messages, 
 but I opted not to print these in order to reduce the clutter.
 
 <<>>=
 library(tidyverse)
 library(here)
+
+# Override default plotting theme (black and white instead of grey)
+theme_set(theme_bw()) 
+
 d <- read_csv(here("data", "dekeyser2010.csv"))
 @
 
@@ -201,21 +222,20 @@ proficient at weeding out syntax errors. And if you don't know what a
 certain parameter is supposed to achieve, change its value and see what happens!
 \parend
 
-Figure \ref{fig:dekeyser_dotplot} shows a basic dot plot 
+Figure \ref{fig:dekeyser_dotplot} shows a basic Cleveland dot plot 
 of the participants' \textsc{gjt} scores.
-<<fig.height = 9, fig.cap = "A dot plot of the participants' grammaticality judgement scores.\\label{fig:dekeyser_dotplot}">>=
+<<fig.height = 9, fig.cap = "A Cleveland dot plot of the participants' grammaticality judgement scores. The plot nicely shows that there are no extreme outlying data points.\\label{fig:dekeyser_dotplot}">>=
 ggplot(data = d,
        aes(x = GJT,
            y = reorder(Participant, GJT))) +
   geom_point() +
-  ylab("Participant ID") +
-  theme_bw()
+  ylab("Participant ID")
 @
 
 Our first goal in this section is to describe these 76
 \textsc{gjt} values using a single number. 
 While different kinds of averages exist
-(arithmetic mean, median, trimmed mean, winsorised mean, Hodges--Lehmann estimator, etc.),
+(arithmetic mean, median, trimmed mean, winsorised mean, etc.),
 let's pretend we don't know anything about those.
 Then, a promising plan of attack would be to partition the information in
 the data points into two parts:
@@ -223,10 +243,10 @@ a systematic part that captures the communalities
 between the data points, and an unsystematic part
 that captures the individual discrepancies between
 those communalities and the data points.
-That is, for each observation, we would have the
+That is, for each observation ($i = 1, \dots, n$), we would have the
 following equation:
 \[
-  \textrm{a specific outcome} = \textrm{communality between all outcomes} + \textrm{some discrepancy}.
+  \textrm{the $i$-th outcome} = \textrm{communality between all $n$ outcomes} + \textrm{the $i$-th discrepancy}.
 \]
 This notation is a bit cumbersome, so let's use some shorthand:
 \begin{equation*}
@@ -237,8 +257,7 @@ where $y_i$ is the $i$-th observation in the data set
 $\beta_0$ represents the communality between all 76 outcome values,
 and $\varepsilon_i$ expresses by how much the $i$-th observation
 deviates from this communality.
-The $\varepsilon_i$ values are referred to as the 
-\textbf{residuals} or the \textbf{error term}.
+The $\varepsilon_i$ values are referred to as the equation's \textbf{errors}.
 We write $\beta_0$ instead of just $\beta$ because we'll
 be using more than one $\beta$ parameter shortly.
 We're usually more interested in the $\beta$s than in the 
@@ -249,8 +268,8 @@ disposal, we can only \textbf{estimate} the $\beta$s based
 on our data set.
 We'll let $\widehat{\beta}_0$ denote our estimate of $\beta_0$.
 Since $\widehat{\beta}_0$ is merely an estimate,
-so, too, the values of $\varepsilon$ that we'll end up with
-will be estimates:
+so, too, will the values of $\varepsilon$ that we'll end up with
+be estimates:
 \begin{equation}
   y_i = \widehat{\beta}_0 + \widehat{\varepsilon}_i.\label{eq:glm}
 \end{equation}
@@ -258,6 +277,7 @@ This is equivalent to
 \[
  \widehat{\varepsilon}_i = y_i - \widehat{\beta}_0.
 \]
+These estimated errors are called the \textbf{residuals}.
 
 \subsection{Obtaining parameter estimates}
 But how to compute $\widehat{\beta}_0$?
@@ -278,8 +298,13 @@ is that this depends on what you mean by `optimal'.
 
 One sensible way of defining `optimal' is that $\beta_0$ needs to
 be estimated in such a way that the sum of the absolute
-residuals (i.e., $\sum_{i = 1}^n |\widehat{\varepsilon}_i|$) is as small
-as possible; this is known as the {\bf method of least absolute deviations}.
+residuals, i.e., 
+\[
+  \sum_{i = 1}^n |\widehat{\varepsilon}_i| = |\widehat{\varepsilon}_1| + \dots + |\widehat{\varepsilon}_n|,
+\]
+is as small
+as possible.
+This is known as the {\bf method of least absolute deviations}.
 If we pick $\widehat{\beta}_0 = 135$, then
 the sum of the absolute residuals equals 1993:
 <<>>=
@@ -290,7 +315,7 @@ residuals equals 1799:
 <<>>=
 sum(abs(d$GJT - 148))
 @
-So by our definition of `optimal', 
+So by this definition of `optimal', 
 $\widehat{\beta}_0 = 148$
 is a better choice than
 $\widehat{\beta}_0 = 135$.
@@ -300,11 +325,15 @@ The left graph of Figure \ref{fig:optimisation}
 shows exactly this. Note that for the \textsc{gjt}
 data, the sum of absolute residuals is minimised for
 $\widehat{\beta}_0$ values between 150 and 151.
-It's not a coincidence that the median of the 
-\textsc{gjt} values is 150.5:
+It's not a coincidence that the medians of the 
+\textsc{gjt} comprise the interval $[150, 151]$:
 if we estimate $\widehat{\beta}_0$ by minimising
-the sum of the absolute residuals, then we obtain
-the sample median! For a proof, see \citet{Schwertman1990}.
+the sum of the absolute residuals, 
+then we obtain the sample medians! For a proof, see \citet{Schwertman1990}.\footnote{\emph{A} median of a list of values $(x_1, x_2, \dots, x_n)$
+is any value $r$ such that there are equally as many $x_i$ values
+that are at least as large as $r$ as there are that are at most as large as $r$.
+When talking about \emph{the} median, we refer to the average of the
+smallest such value $r$ and the largest such value.}
 
 <<echo = FALSE, fig.cap = "{\\it Left:} If we estimate the parameter so as to minimise the sum of the absolute deviations, we obtain the sample median. {\\it Right:} If we estimate the parameter so as to minimise the sum of the squared deviations, we obtain the sample mean.\\label{fig:optimisation}", echo = FALSE, fig.width = 8, fig.height = 2.3, out.width=".9\\textwidth">>=
 sum_of_squares <- function(x, m) {
@@ -320,8 +349,7 @@ p1 <- ggplot(df,
   geom_line() +
   xlab(expression(widehat(beta[0]))) +
   ylab(expression(paste(Sigma[{i==1}]^n, widehat(epsilon)[i]^2))) +
-  ggtitle("Least squares") +
-  theme_bw()
+  ggtitle("Least squares")
 
 sum_of_deviations <- function(x, m) {
   sum(abs(x - m))
@@ -337,31 +365,28 @@ p2 <- ggplot(df,
   geom_line() +
   xlab(expression(widehat(beta[0]))) +
   ylab(expression(paste(Sigma[{i==1}]^n, abs(widehat(epsilon)[i])))) +
-  ggtitle("Least absolute deviations") +
-  theme_bw()
+  ggtitle("Least absolute deviations")
 
 gridExtra::grid.arrange(p2, p1, ncol = 2)
 @
 
 Another sensible definition of `optimal' is that $\beta_0$ needs to
 be estimated in such a way that the sum of the squared
-residuals (i.e., $\sum_{i = 1}^n \widehat{\varepsilon}_i^2$) is as small
-as possible. This is the {\bf method of least squares}.
+residuals, i.e., 
+\[
+  \sum_{i = 1}^n \widehat{\varepsilon}_i^2 = \widehat{\varepsilon}_1^2 + \dots + \widehat{\varepsilon}_n^2,
+\]
+is as small as possible. 
+This is the {\bf method of least squares}.
 As shown in the right graph of Figure \ref{fig:optimisation},
 the optimal $\widehat{\beta}_0$ value when using least squares
 is about 150.8 for the \textsc{gjt} data.
 The mean of the \textsc{gjt} data is about 150.8, too, and 
 of course, this isn't a coincidence:
 When we estimate $\beta_0$ using least squares, we obtain
-the sample mean! We can prove this by finding the value for
-$\widehat{\beta}_0$ for which the derivative of
-the sum of squares, seen as a function of $\widehat{\beta}_0$,
-equals 0: 
-\[
-\frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0}\sum_{i = 1}^n (y_i - \widehat{\beta}_0)^2  \overset{!}{=} 0.
-\]
-This requires a bit of secondary school mathematics, 
-which you'll find in the footnote.\footnote{Consider the expression
+the sample mean! 
+This can be proved using a bit of secondary school mathematics;
+the footnote contains two such proofs.\footnote{Consider the expression
 \[
  \sum_{i=1}^{n} (y_i - \widehat{\beta}_0)^2
 \]
@@ -376,7 +401,7 @@ First compute the derivative of $\sum_{i=1}^{n} (y_i - \widehat{\beta}_0)^2$ wit
 \begin{align*}
   \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0}\sum_{i = 1}^n (y_i - \widehat{\beta}_0)^2
   % &= \sum_{i = 1}^n \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} (y_i -\widehat{\beta}_0)^2 & [\textrm{The derivative of a sum is the sum of the derivatives.}] \\
-  &=\frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} \sum_{i = 1}^n \left(y_i^2 - 2y_i\widehat{\beta}_0 + \widehat{\beta}_0^2\right) & [\textrm{Unpacking the square of a difference.}] \\
+  &=\frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} \sum_{i = 1}^n \left(y_i^2 - 2y_i\widehat{\beta}_0 + \widehat{\beta}_0^2\right) & [(a-b)^2 = a^2 - 2ab + b^2] \\
   &= \sum_{i = 1}^n \left(\frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} y_i^2 -  \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} 2y_i\widehat{\beta}_0 + \frac{\textrm{d}}{\textrm{d} \widehat{\beta}_0} \widehat{\beta}_0^2\right)& [\textrm{The derivative of a sum is the sum of the derivatives.}] \\
   &= \sum_{i = 1}^n \left(0 - 2y_i + 2\widehat{\beta}_0\right) & [\textrm{Basic derivatives.}] \\
   &= -\left(2 \sum_{i=1}^n y_i\right) + 2n\widehat{\beta}_0.
@@ -386,11 +411,29 @@ $2\sum_{i=1}^n y_i = 2n\widehat{\beta}_0$. Dividing both sides by $2n$, we obtai
 \[
   \widehat{\beta}_0 = \frac{1}{n}\sum_{i=1}^n y_i,
 \]
-that is, the arithmetic mean of the $y_i$ values. This completes the proof.}
+that is, the arithmetic mean of the $y_i$ values. This completes the first proof.
 
-Computationally, the method of least squares is the easiest to work with.
+An alternative proof that doesn't rely on taking derivatives is this.
+Write $\overline y := 1/n \sum_{i=1}^n y_i$, i.e., the sample mean.
+Note that
+\begin{align*}
+ \sum_{i=1}^{n} (y_i - \widehat{\beta}_0)^2
+ &= \sum_{i=1}^{n} \left((y_i - \overline y) + (\overline y - \widehat{\beta}_0)\right)^2 & [\textrm{Add $0$.}] \\
+ &= \sum_{i=1}^n \left((y_i - \overline y)^2 + 2(y_i - \overline y)(\overline y - \widehat{\beta}_0) + (\overline y - \widehat{\beta}_0)^2\right) & [(a+b)^2 = a^2 + 2ab + b^2] \\
+ &= \sum_{i=1}^n (y_i - \overline y)^2 + 2(\overline y - \widehat{\beta}_0)\left(\sum_{i=1}^n y_i - n\overline y\right) + n(\overline y - \widehat{\beta}_0)^2 & [\textrm{Write out sum.}] \\
+ &= \sum_{i=1}^n (y_i - \overline y)^2 + n(\overline y - \widehat{\beta}_0)^2. & [\sum_{i=1}^n y_i = n\overline y]
+\end{align*}
+The term $\sum_{i=1}^n (y_i - \overline y)^2$ doesn't depend on $\widehat{\beta}_0$,
+whereas $n(\overline y - \widehat{\beta}_0)^2 \geq 0$ with equality if and only if $\widehat{\beta}_0 = \overline y$.
+This completes the second proof.}
+
+Both computationally and mathematically, the method of least squares is the easiest to work with.
 Unless mentioned otherwise, the parameter estimates in the general linear model
-are obtained using this method (`ordinary least squares', or \textsc{ols}).
+are obtained using this method (`\term{ordinary least squares}', or \textsc{ols}).
+If you want to use the method of least absolute deviations, 
+median (or quantile) regression models are available.
+Further, in several applications in machine learning, 
+other optimality criteria are quite common.
 
 \subsection{General linear models in R}
 We can use the \texttt{lm()} function to build linear models
@@ -416,8 +459,8 @@ This is merely a matter of rounding the output;
 the underlying representation of these estimates is the same.
 
 We can obtain the residuals, that is, the $\widehat{\varepsilon}_i$ values as follows:
-<<>>=
-resid(mod.lm)
+<<eval = FALSE>>=
+resid(mod.lm) # output not shown
 @
 
 If we subtract the residuals from the observed values,
@@ -437,116 +480,687 @@ predict(mod.lm)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Quantifying uncertainty}
-What we've done so far is \emph{estimate}
-the $\beta_0$ parameter that we're interested in.
-While we have a principled approach for obtaining
-this estimate, the resulting value will depend
-on the data that we've collected. Usually,
-the estimate is based only on a sample from a
-larger population. As a result, our estimate
-of $\beta_0$ won't exactly coincide with the true
-but unknown value of $\beta_0$, that is,
-there is some inherent uncertainty about our estimate.
-By making some assumptions and leveraging the
-information in the data, we can, however,
-estimate the extent of this uncertainty.
+What we've done so far is \emph{estimate} the $\beta_0$ parameter that we're interested in.
+While we now have a principled approach for obtaining this estimate, 
+the resulting value will depend on the data that we've collected. 
+Usually, the estimate is based only on a sample from some larger population.
+As a result, 
+our estimate of $\beta_0$ won't exactly coincide with the true but unknown value of $\beta_0$, 
+that is, there is some inherent uncertainty about our estimate.
 
-The assumption we'll make is that the residuals, i.e., the $\varepsilon_i$
-values, 
-be distributed \textbf{identically}
-and \textbf{independently}.
-This assumption is often abbreviated as the i.i.d.\ assumption
-(for `identically and independently distributed').
+\subsection{The sampling distribution of the sample mean}
+Before continuing with our discussion of linear models, let's consider by how much means of
+different samples taken from the same distribution tend to differ from one another.
+To make matters more concrete, 
+let us assume that we're interested in the \textsc{gjt} variable and that this variable has the exact same
+distribution in the population of interest as it does in DeKeyser et al.'s sample 
+(Figure \ref{fig:samplesfromdistribution}, top row).
+This distribution has expectation (mean) $\mu = 150.78$ and population variance 
+$\sigma^2 = 746.26$:\footnote{I don't use R's \rcode{var()} function for computing the population variance since it computes the sample variance rather than the population variance. The formulae are slightly different.}
+<<>>=
+(pop_mean <- mean(d$GJT)) # expectation
+(pop_var <- mean(d$GJT^2) - mean(d$GJT)^2) # variance
+@
+A \term{simple random sample} of size $n$ from a population consists of $n$ independently 
+drawn values following this population's distribution.
+In order to study the behaviour of the sample mean,
+we now draw a large number (here: 20,000) of independent simple random samples 
+(i.e., with replacement) of size 20 from this population (Figure \ref{fig:samplesfromdistribution}, middle row),
+compute their means, and inspect the distribution of these sample means (bottom row).
 
-The `identical' part of this assumption
-is also referred to as the homoskedasticity
-assumption.
-It means that we assume that there exists a single
-distribution from which all residuals were drawn, that is,
+<<echo = FALSE, fig.cap = "The top row shows the distribution that we're (for the sake of the illustration) interested in. Imagine that we draw a large number of independent simple random samples with the same size (here: $n = 20$) from this distribution and compute their means. The middle row shows five such random samples, and their means are highlighted by the dashed vertical line. The bottom row shows the distribution of these sample means. In this example, the latter distribution seems to be more or less approximately distributed, but this isn't necessarily the case.\\label{fig:samplesfromdistribution}", cache = TRUE, fig.width = 1.2*9, fig.height = 1.2*5.5, out.width = "\\textwidth", message = FALSE, warning = FALSE>>=
+p_population <- ggplot(data = d,
+       aes(x = GJT, y = after_stat(density))) +
+  geom_histogram(binwidth = 10, fill = "lightgrey", colour = "black") +
+  xlab("GJT") +
+  ylab("Probability density") +
+  ggtitle("Distribution in population",
+          "(usually unknown)")
+
+
+colours <- RColorBrewer::brewer.pal(5, "Set1")
+set.seed(2024-02-22)
+
+stichprobe1 <- d |>  sample_n(20, replace = TRUE)
+p_1 <- ggplot(stichprobe1, aes(x = GJT)) +
+  geom_histogram(breaks = seq(90, 210, 5),
+                 fill = colours[1], colour = "black") +
+  geom_vline(xintercept = mean(stichprobe1$GJT), linetype = 2) +
+  # xlim(90, 210) +
+  xlab("GJT") +
+  ylab("Number") +
+  ggtitle("Random sample", "(n = 20)")
+
+stichprobe2 <- d |>  sample_n(20, replace = TRUE)
+p_2 <- ggplot(stichprobe2, aes(x = GJT)) +
+  geom_histogram(breaks = seq(90, 210, 5), fill = colours[2], colour = "black") +
+  geom_vline(xintercept = mean(stichprobe2$GJT), linetype = 2) +
+  xlab("GJT") +
+  ylab("Number") +
+  ggtitle("Random sample", "(n = 20)")
+
+stichprobe3 <- d |>  sample_n(20, replace = TRUE)
+p_3 <- ggplot(stichprobe3, aes(x = GJT)) +
+  geom_histogram(breaks = seq(90, 210, 5), fill = colours[3], colour = "black") +
+  geom_vline(xintercept = mean(stichprobe3$GJT), linetype = 2) +
+  xlab("GJT") +
+  ylab("Number") +
+  ggtitle("Random sample", "(n = 20)")
+
+stichprobe4 <- d |>  sample_n(20, replace = TRUE)
+p_4 <- ggplot(stichprobe4, aes(x = GJT)) +
+  geom_histogram(breaks = seq(90, 210, 5), fill = colours[4], colour = "black") +
+  geom_vline(xintercept = mean(stichprobe4$GJT), linetype = 2) +
+  xlab("GJT") +
+  ylab("Number") +
+  ggtitle("Random sample", "(n = 20)")
+
+stichprobe5 <- d |>  sample_n(20, replace = TRUE)
+p_5 <- ggplot(stichprobe5, aes(x = GJT)) +
+  geom_histogram(breaks = seq(90, 210, 5), fill = colours[5], colour = "black") +
+  geom_vline(xintercept = mean(stichprobe5$GJT), linetype = 2) +
+  xlab("GJT") +
+  ylab("Number") +
+  ggtitle("Random sample", "(n = 20)")
+
+sampling_distribution <- replicate(20000, {
+  mean(sample(d$GJT, 20, replace = TRUE))
+})
+df_stichprobenmittel <- data.frame(means = sampling_distribution)
+p_stichprobenmittel <- ggplot(df_stichprobenmittel, aes(x = means)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 fill = "darkgrey", colour = "black") +
+  xlab("Sample mean")  +
+  ylab("Probability density") +
+  ggtitle("Distibution of sample means\nfor n = 20")
+
+gridExtra::grid.arrange(p_population,
+                        p_1, p_2, p_3, p_4, p_5,
+                        p_stichprobenmittel,
+                        layout_matrix = matrix(c(NA, NA, 1, NA, NA,
+                                                 2, 3, 4, 5, 6,
+                                                 NA, NA, 7, NA, NA), ncol = 5, byrow = TRUE))
+@
+
+Observe, first, that the distribution of sample means has itself a mean, $\mu_{\overline x}$,
+that is identical to mean $\mu$ of the population from which the samples were drawn.
+(The mean of the empirical distributions of these 20,000 sample means won't exactly equal
+$\mu_{\overline x} = \mu$, but any slight discrepancy is due solely to our working with a limited
+number of sample means.)
+If the original population has a mean, then this is always true -- regardless of the shape of the distribution, and even for samples with observations that are not independent.\footnote{Not all distributions have means.
+The textbook example of a distribution without a mean is the Cauchy distribution. That said, we mustn't worry
+about such theoretical counterexamples.}
+
+Second, if the original distribution has finite variance,
+the distribution of the sample means has itself finite variance, $\sigma^2_{\overline{x}}$.\footnote{Not all distribution have a variance. This includes all distributions without
+a mean (such as the Cauchy) and some other cases such as the Student's $t$ distribution with two degrees of freedom.
+Again, we needn't worry about such cases here.}
+As the next exercise will show by means of a simulation, we have
+\[
+  \sigma^2_{\overline x} = \frac{\sigma^2}{n},
+\]
+where $n$ is the size of the samples.
+Hence, the standard deviation of the distribution of sample means is given by $\sigma/\sqrt{n}$.
+This again is true regardless of the shape of the distribution.
+
+\mypar[Expectation and variance of the sample mean]{Exercise}
+Throughout this lecture series, we'll rely heavily on simulations and related methods.
+As a warm-up, consider the following code snippet.
+It draws a random sample (with replacement) of size 20 from the GJT data
+and compute its mean. 
+It repeats this process 20,000 times and returns a vector of the 20,000 sample means
+so computed.
+Then it computes the mean and the variance of these means.
+<<eval = FALSE>>=
+sample_means <- replicate(20000, {
+  mean(sample(d$GJT, 20, replace = TRUE))
+})
+mean(sample_means)
+var(sample_means)
+@
+
+Adapt this code snippet in order to verify the identities 
+$\mu_{\overline x} = \mu$ and $\sigma^2_{\overline x} = \frac{\sigma^2}{n}$ for
+sample sizes $n = 5, 10, 20, 100$.
+Also briefly explain why the results you obtain aren't \emph{exactly} what the formulas predict.
+\parend
+
+A third observation is that the distribution of the sample means 
+seems to be more or less normally distributed.
+This is the celebrated {\bf central limit theorem} at play.
+
+\mypar[Central limit theorem]{Theorem}
+Let $X_1, X_2, \dots, X_n$ be independent observations
+drawn at random from a distribution with 
+expectation $\mu$ and finite variance $\sigma^2$ (i.e., finite standard deviation $\sigma$).
+Then the distribution of the statistic
+\begin{equation}\label{eq:clt}
+  \sqrt{n}\left(\overline{X} - \mu\right),
+\end{equation}
+where $\overline{X} := 1/n \sum_{i=1}^n X_i$,
+converges to a normal distribution with mean 0 and variance $\sigma^2$
+(written as $\mathcal{N}(0, \sigma^2)$) as $n \to \infty$.
+\parend
+
+The central limit theorem (or \textsc{clt} among friends)
+does not state that the distribution of the statistic in (\ref{eq:clt})
+mean \emph{is} normal for any one sample size $n$.
+Rather, it offers the guarantee that the 
+difference between the distribution of this statistic
+and $\mathcal{N}(0,\sigma^2)$ becomes
+ever smaller for larger sample sizes.
+That is, if we know the mean and the variance of the distribution 
+from which we draw a random sample, 
+we may use the properties of the normal distribution 
+to give \emph{approximate} answers as to where this statistic will end up.
+
+\mypar{Remark}
+  Let $a, b$ be real numbers. 
+  If $Z$ is $\mathcal{N}(0,1)$-distributed,
+  then $a + bZ$ is $\mathcal{N}(a, b^2)$-distributed.
+  Hence, if the statistic in (\ref{eq:clt}) is approximately $\mathcal{N}(0,\sigma^2)$-distributed
+  for a given sample size $n$,
+  then $\overline X$ is approximately
+  approximately $\mathcal{N}(\mu, \sigma^2 / n)$-distributed,
+  confirming our earlier observations about the mean and variance of the distribution
+  of the sample mean.
+\parend
+
+% <<>>=
+% quantile(sample_means, probs = c(0.025, 0.975))
+% qnorm(c(0.025, 0.975), mean = mu, sd = sd_n)
+% @
+% 
+% That is, according to the normal approximation, there is a 2.5\% chance
+% that a sample mean of three observations ends up below $0.1733$ and a 2.5\% chance
+% that it ends up above $0.8267$.
+% These `tail probabilities' match quite well how often we actually observe
+% such extreme sample means.
+% 
+% You can change \texttt{n} to a different number and run the code again
+% to see what things look like for different sample sizes.
+% \parend
+% 
+The following exercises may help you develop
+your intuition about the workings of the central limit theorem.
+They are entirely optional.
+Incidentally, you can look up the mean and variance of the distributions
+mentioned on Wikipedia.
+
+\mypar[\textsc{clt} for discrete uniform distribution]{Example}
+A dice throw with a standard six-sided dice can be modelled
+using a discrete uniform distribution on $\{1, 2, 3, 4, 5, 6\}$,
+i.e., a distribution that assigns equal probability to all of these values.
+This distribution has mean $\mu = 3.5$ and variance $\sigma^2 = (6^2 - 1^2) / 12 = 35/12$.
+(You can look up this information on Wikipedia.)
+
+  If we draw a random sample of $n = 3$ observations and compute their mean,
+  then the sampling distribution of this mean has expectation $\mu_{\overline x} = \mu = 3.5$
+  and variance $\sigma^2_{\overline x} = \sigma^2 / n = 35/(12 \cdot 3)$.
+  The code below generates 20,000 such sample means and plots their distribution as a histogram
+  (Figure \ref{fig:unif}, left).
+  Additionally, it plots the empirical cumulative distribution function (ecdf) of these sample means,
+  that is, the proportion of the 20,000 sample means that fall below some number $r$
+  (Figure \ref{fig:unif}, right, in red).
+  The blue line shows what proportion of sample means would fall below $r$ if these
+  perfectly followed a $\mathcal{N}(3.5, 35/(12 \cdot 3))$ distribution.
+  (In the R code, note that the normal distribution in R is parametrised by
+  its mean and standard deviation rather than by its mean and variance.
+  Hence, we need to take the square root of the variance.)
+
+<<eval = TRUE, out.width = "0.65\\textwidth", fig.width = 8*1.3, fig.height = 3*1.3, fig.cap="\\textit{Left:} Histogram of 20,000 means of samples of size $n = 3$ from a discrete uniform distribution on $1, \\dots, 6$. \\textit{Right:} The empirical cumulative distribution (in red) shows the proportion of sample means below a value $r$ (red). The blue line shows the proportions expected according to the \\textsc{clt}-based normal approximation.\\label{fig:unif}">>=
+n <- 3 # set sample size
+mu <- 3.5
+sd_n <- sqrt(35/(12 * n))
+sample_means <- replicate(20000, {
+  mean(sample(1:6, n, replace = TRUE)) # generate n random values from 1, ..., 6
+})
+
+par(mfrow = c(1, 2)) # two plots side by side
+hist(sample_means, xlab = expression(bar(x)), breaks = 30,
+     main = paste0("Distribution of sample means for n = ", n))
+
+plot(ecdf(sample_means), pch = ".", col = "red",
+     xlab = "r",
+     main = paste0("Empirical cumulative distribution\nof sample means for n = ", n),
+     ylab = "Cumulative probability")
+curve(pnorm(x, mean = mu, sd = sd_n), # add cdf of normal
+      add = TRUE, col = "blue")
+
+par(mfrow = c(1, 1)) # back to plotting one plot per row
+@
+
+Clearly, the sampling distribution of the sample mean is far from normal for $n = 3$.
+The following commands computes the proportion of sample means lie in the interval
+$[3.45, 3.55]$, and also estimates this proportion under the \textsc{clt}-based
+normal approximation:
+<<>>=
+mean(sample_means >= 3.45 & sample_means <= 3.55)
+pnorm(3.55, mean = mu, sd = sd_n) - pnorm(3.45, mean = mu, sd = sd_n)
+@
+Due to the discreteness of the population, it's completely impossible to find
+a sample mean in the interval $[3.45, 3.55]$.
+
+For a given distribution with distribution function $F$
+and a number $\gamma \in (0,1)$,
+the quantile function $F^{-1}(\gamma)$ outputs the smallest number
+$r$ such that $F(r) \geq \gamma$.
+The quantile functions for normal distributions are available in R as \texttt{qnorm()},
+whereas the \texttt{quantile()} function can be applied to an empirical distribution.
+The following commands can be used to look up between which two values
+95\% of the sample means lie -- be it in the simulation (\texttt{quantile()})
+or according to the normal approximation (\texttt{qnnorm()}).
+<<>>=
+quantile(sample_means, probs = c(0.025, 0.975))
+qnorm(p = c(0.025, 0.975), mean = mu, sd = sd_n)
+@
+
+Finally, we compute the proportion of sample means that lie below $0.9999$
+as well as the normality-based estimate;
+note that the true proportion is necessarily 0 since the lowest value that
+could be observed was 1:
+<<>>=
+mean(sample_means <= 0.99999)
+pnorm(0.99999, mean = mu, sd = sd_n)
+@
+
+Use and adapt the code above to inspect how well the 
+sampling distribution of the mean of $n = 2, 8, 32, 128$ dice throws.
+can be approximated by a suitable normal distribution.
+\parend
+
+\mypar[\textsc{clt} for log-normal distribution]{Exercise}
+A random variable $X > 0$ follows a log-normal
+distribution with parameters $a, b$ ($\textrm{LogNorm}(a,b^2)$) if the random variable $\log(X)$ follows a $\mathcal{N}(a,b^2)$ distribution.
+Log-normally distributed variables have a right-skewed distribution,
+unlike the uniform distributions from the previous examples/exercises,
+which have no skew.
+Run the following code to inspect the sampling distribution of
+the mean of a sample log-normally distributed observations
+and see how well the normal approximation works for such skewed data.
+Play around with the \texttt{n}, \texttt{a} and \texttt{b} values.
+(To get an idea of the shape of the log-normal distribution, use \rcode{n <- 1}.)
+
+<<eval = TRUE>>=
+# Set simulation parameters
+n <- 20
+a <- 1
+b <- 1
+
+# Mean and standard deviation of normal approximation
+mu <- exp(a + b^2/2)
+sd_n <- sqrt((exp(b^2) - 1)*exp(2*a + b^2)/n)
+
+# Sample from distribution
+sample_means <- replicate(20000, {
+  mean(rlnorm(n, a, b))
+})
+@
+
+% # <<>>=
+% # par(mfrow = c(1, 3))
+% # curve(dlnorm(x, meanlog = a, sdlog = b),
+% #       from = 0, to = qlnorm(0.995, a, b),
+% #       xlab = "x", ylab = "Probability density",
+% #       main = paste0("Density function of LogNorm(", a, ", ", b, "²)"))
+% # 
+% # hist(sample_means, xlab = expression(bar(x)),
+% #      main = paste0("Distribution of sample means for n = ", n))
+% # 
+% # plot(ecdf(sample_means), pch = ".", col = "red",
+% #      xlab = "r",
+% #      main = paste0("Empirical cumulative distribution\nof sample means for n = ", n),
+% #      ylab = "Cumulative probability")
+% # curve(pnorm(x, mean = mu, sd = sd_n),
+% #       add = TRUE, col = "blue")
+% # par(mfrow = c(1, 1))
+% @
+
+
+<<>>=
+quantile(sample_means, probs = c(0.025, 0.975))
+qnorm(c(0.025, 0.975), mean = mu, sd = sd_n)
+@
+
+Note that even for pretty large sample sizes,
+the normal approximation isn't very good.
+The \textsc{clt} offers the guarantee that distribution of sample means
+becomes eventually indistinguishable from a normal distribution, as $n \to \infty$.
+However, the rate of convergence depends heavily on the shape of the distribution
+from which the samples are drawn.
+\parend
+
+In the \textsc{gjt} example, however, the \textsc{clt}-based normal approximation
+is excellent even for a sample size of $n = 20$; see the output below as well as
+Figure \ref{fig:gjt_clt}.
+<<eval = TRUE, out.width = "0.3\\textwidth", fig.width = 2.9*2, fig.height = 2.2*2, fig.cap="The empirical cumulative distribution (in red) shows the proportion of sample means below a value $r$ (red). The blue line shows the proportions expected according to the \\textsc{clt}-based normal approximation. The lines can hardly be distinguished as the normal approximation is so good in this case.\\label{fig:gjt_clt}">>=
+n <- 20
+sample_means <- replicate(20000, {
+  mean(sample(d$GJT, n, replace = TRUE))
+})
+
+# Cumulative proportions
+plot(ecdf(sample_means), pch = ".", col = "red",
+     xlab = "r",
+     main = paste0("Empirical cumulative distribution\nof sample means for n = ", n),
+     ylab = "Cumulative probability")
+curve(pnorm(x, mean = pop_mean, sd = sqrt(pop_var / n)), add = TRUE, col = "blue")
+@
+
+<<>>=
+mean(sample_means >= 149 & sample_means <= 151)
+pnorm(151, mean = pop_mean, sd = sqrt(pop_var / n)) -
+  pnorm(149, mean = pop_mean, sd = sqrt(pop_var / n))
+
+quantile(sample_means, probs = c(0.025, 0.975))
+qnorm(c(0.025, 0.975), mean = pop_mean, sd = sqrt(pop_var / n))
+@
+
+Now imagine that you were told just the difference between, say, 
+the 97.5th and the 2.5th percentile of the sampling distribution of the sample mean,
+but you didn't know anything else about it.
+If this difference is small, then this implies that any given individual sample mean
+stands a good chance of being pretty close to the actual population mean;
+if this difference is large, individual sample means can't be relied on to be
+good approximations of the actual population mean.
+That is, a measure of the width of the sampling distribution would be a 
+useful indication of the degree of uncertainty we have when estimating the population mean.
+Instead of using differences between percentiles, other measures can be used,
+for instance, the standard deviation of the sampling distribution.
+
+\subsection{Why we need assumptions}
+It's not immediately obvious why the insights from the previous subsection are
+of any use to us:
+they assume that we know the properties of the distribution we sample from.
+But if we knew these properties, we wouldn't be doing any sampling!
+In order to make some headway, we need to make a few assumptions about our data.
+
+The first assumptions we'll make is that the errors, i.e.,
+the $\varepsilon_i$ values, are distributed \textbf{identically} and \textbf{independently}.
+This assumption is often abbreviated as the i.i.d.\ assumption (for `identically and independently distributed').
+
+The `identical' bit means that we assume
+that there exists a single distribution from which all errors were drawn,
+that is,
 \[
   \varepsilon_i \sim \textrm{some distribution}
 \]
 for $i = 1, \dots, n$.
-We don't make any further assumptions about this
-distribution yet; we're merely assuming that it
-is not the case that some residuals are drawn
-from, say, a uniform distribution spanning 
-from $-6$ to $6$ whereas some other residuals
+The only assumption about this distribution we'll make for now is
+that this distribution has expectation (i.e., mean) 0 and finite variance.
+In the present setting, this is equivalent to assuming that
+the $y_i$ values are drawn from a distribution with expectation $\mu = \beta_0$ and finite variance.
+We don't make any further assumptions about this distribution yet;
+we're merely assuming that it is not the case that some errors are drawn
+from, say, a uniform distribution spanning
+from $-6$ to $6$ whereas some other errors
 are drawn from a normal distribution with
 mean 0 and a standard deviation of $3$.
-
+ 
 The independence assumption entails that
-if we know the value of one residual, then 
+if we know the value of one error, then
 this doesn't provide us with any more information
-about any of the remaining residuals. 
-(The formal definition of stochastic independence is 
+about any of the remaining errors.
+(The formal definition of stochastic independence is
 more involved, but essentially boils down to this.)
 To make this more concrete, consider the following example.
 Let's say you wanted to estimate the average length of the
-[u] vowel in the Ghent vernacular. To this end, you have 
+[u] vowel in the Ghent vernacular. To this end, you have
 25 informants from Ghent read out 50 words containing [u].
 It is conceivable that some informants tend to produce
 longer [u] sounds than others, that is, once you obtain
-a positive residual (corresponding to longer than average vowel length) 
+a positive residual (corresponding to longer than average vowel length)
 for a single production from a single speaker,
 chances are the other productions from this speaker will also
 have positive residuals. That is, once you've learnt something
-about the value of one specific residual, you can make more informed guesses about
-the values of some other residuals, too.
+about the value of one specific error, you can make more informed guesses about
+the values of some other error, too.
+(Recall that `error' merely refers to the discrepancy between
+the observation $y_i$ and the shared communality $\mu = \beta_0$.)
 Similarly, it is conceivable
 that [u] sounds tend to be longer in some words or phonological contexts
-than others. If so, the residual for a single word produced by a single
-speaker may give you some clues as to the residuals for other productions
+than others. If so, the error for a single word produced by a single
+speaker may give you some clues as to the error for other productions
 of the same word. In sum, the $25 \times 50 = 1250$ data points that this
 study would produce would violate the independence assumption if we were
 to analyse them with the tools we're going to discuss.
 
-Problems with dependencies between residuals can be tackled in a number of ways,
-with one popular approach since 2008 or so being the use of mixed-effects
-models. These are beyond the scope of this module, but see Module 9 of the workshop.
+Problems with dependencies between errors can be tackled in a number of ways,
+with one popular approach since 2008 or so being the use of mixed-effects models.
+Problems having to do with different errors stemming from different distributions
+usually aren't as detrimental, but, if necessary, they can be tackled in a few ways 
+(e.g., generalised least squares models, nonparametric bootstrapping).
 
 We'll have more to say about modelling assumptions later.
 Let's now turn to the matter of estimating the extent of the uncertainty
 in our parameter estimates.
-(We \emph{could} go on and estimate
-the uncertainty about our uncertainty estimates, but no-one does so and
-let's not go there.)
 
-\subsection{The semi-parametric bootstrap}\label{sec:semiparametric}
-We're currently assuming that the residuals be identically and independently
-distributed. To make some headway, we need to add a further assumption
+\subsection{The bootstrap}\label{sec:semiparametric}
+We're currently assuming that the errors are identically and independently
+distributed according to some non-weird distribution.
+To make some headway, we need to add a further assumption
 about the shape of the distribution from which the residuals were drawn.
-One possible approach is to assume that the estimated residuals we have
-give us a reasonable approximation of the distribution of the residuals.
-Then, we can use the {\bf bootstrap} technique 
-\citep{Efron1979,Efron1993,Hesterberg2015} 
-to quantify the uncertainty in our parameter estimates.
+One possible approach is to assume that the (estimated) residuals we have
+give us a reasonable approximation of the distribution of the errors.
+Then, we can use the {\bf bootstrap} technique
+\citep{Efron1979,Efron1993} to quantify the uncertainty in our parameter estimates.
 While a couple of flavours of the bootstrap exist, we'll consider the
-semi-parametric version, which works as follows:
+{\bf semi-parametric} version, which works as follows:
 \begin{enumerate}
-  \item Compute $\widehat{\beta}_0$ and in doing so obtain 
+  \item Compute $\widehat{\beta}_0$ and in doing so obtain
   a vector $\widehat{\varepsilon}$ containing
   values $\widehat{\varepsilon}_1$ through $\widehat{\varepsilon}_n$.
-  
+
   \item Sample with replacement an $n$-valued vector
   from $\widehat{\varepsilon}$ and label it $\widehat{\varepsilon}^*$.
-  The vector $\widehat{\varepsilon}^*$ may contain some 
-  values from $\widehat{\varepsilon}$ several times and others not at all.
-  
-  \item Create a new vector of outcome values: 
+  The vector $\widehat{\varepsilon}^*$ may contain some
+  values from $\widehat{\varepsilon}$ several times and others not at all.\footnote{For large $n$, about 36.7 entries in $\widehat{\varepsilon}$ won't occur in $\widehat{\varepsilon}^*$.}
+
+  \item Create a new vector of outcome values:
   $y_i^* = \widehat{\beta}_0 + \widehat{\varepsilon}_i^*$.
   This new vector is referred to as a bootstrap replicate.
-  
-  \item Estimate $\beta_0$ again but this time using $y^*$. 
+
+  \item Estimate $\beta_0$ again but this time using $y^*$.
   Call the new estimate $\widehat{\beta}_0^*$.
-  
+
   \item Do steps 2--4 a couple of thousand times and in doing so
   obtain a distribution of bootstrapped $\beta_0$ estimates.
+  Always use the \emph{original} $\widehat{\beta}_0$ estimate in step 3,
+  not the previously computed $\widehat{\beta}_0^*$ estimate.
 \end{enumerate}
 
-In R:
+Figure \ref{fig:bootstrap_rot} illustrates this procedure.
+Hopefully, this figure helps to bring across the key idea behind the bootstrap,
+which is this:
+In an ideal world, you'd know the distribution from which the observations
+(or at least the errors) were sampled. Then, you could approximate the sampling
+distribution of the estimated parameter to arbitrary precision by repeatedly
+generating samples from this distribution and reestimating the parameter 
+(like we did in Figure \ref{fig:samplesfromdistribution}).
+Then, you'd compute, say, the standard deviation of the sampling distribution
+or some other measure of this distribution's width.
+Lacking such knowledge about the original distribution, you instead use
+the observed (empirical) distribution of the residuals instead.
+
+<<echo = FALSE, cache = TRUE, fig.cap = "\\textit{Top row:} The first (red) sample from Figure \\ref{fig:samplesfromdistribution} serves as our point of departure. We've estimated $\\beta_0$ using this sample and have obtained 20 residuals. \\textit{Second row:} We generate a large number of new samples (`bootstrap replicates') containing 20 values by resampling with replacement from these 20 residual values. By way of illustration, three such new samples are shown. \\textit{Third row:} For each newly created sample, we combine the resampled residuals with the $\\widehat \\beta_0$ value and reestimate $\\beta_0$ using these new values (highlighted with a dashed vertical line). \\textit{Bottom row:} We consider the distribution of all these new estimates of $\\beta_0$ to get a sense of how strongly such estimates vary from sample to sample for samples of size $n = 20$.\\label{fig:bootstrap_rot}", echo = FALSE, fig.width = 9, fig.height = 8, out.width="\\textwidth">>=
+stichprobe1.lm <- lm(GJT ~ 1, data = stichprobe1)
+stichprobe1$Prediction <- predict(stichprobe1.lm)
+stichprobe1$Residual <- resid(stichprobe1.lm)
+p_sample <- ggplot(stichprobe1, aes(x = Residual)) +
+  geom_histogram(binwidth = 5, fill = colours[1], colour = "black") +
+  geom_vline(xintercept = 0, linetype = 2) +
+  xlab("Residual") +
+  ylab("Number") +
+  ggtitle("Residuals in 1st sample", "(n = 20)")
+
+bs1 <- stichprobe1[sample(1:nrow(stichprobe1), 20, replace = TRUE), ]
+p_bs1 <- ggplot(bs1, aes(x = Residual)) +
+  geom_histogram(binwidth = 5, fill = "pink", colour = "black") +
+  xlab("Bootstrapped error") +
+  ylab("Number") +
+  ggtitle("Bootstrap replicate A" ,"(n = 20)")
+p_bsrep1 <- ggplot(bs1, aes(x = Prediction + Residual)) +
+  geom_histogram(binwidth = 5, fill = "pink", colour = "black") +
+  geom_vline(xintercept = mean(bs1$GJT), linetype = 2) +
+  xlab("Bootstrap replicates of outcome") +
+  ylab("Number") +
+  ggtitle("Bootstrap replicate A" ,"(n = 20)")
+
+bs2 <- stichprobe1[sample(1:nrow(stichprobe1), 20, replace = TRUE), ]
+p_bs2 <- ggplot(bs2, aes(x = Residual)) +
+  geom_histogram(binwidth = 5, fill = "pink", colour = "black") +
+  xlab("Bootstrapped error") +
+  ylab("Number") +
+  ggtitle("Bootstrap replicate B" ,"(n = 20)")
+p_bsrep2 <- ggplot(bs2, aes(x = Prediction + Residual)) +
+  geom_histogram(binwidth = 5, fill = "pink", colour = "black") +
+  geom_vline(xintercept = mean(bs2$GJT), linetype = 2) +
+  xlab("Bootstrap replicates of outcome") +
+  ylab("Number") +
+  ggtitle("Bootstrap replicate B" ,"(n = 20)")
+
+bs3 <- stichprobe1[sample(1:nrow(stichprobe1), 20, replace = TRUE), ]
+p_bs3 <- ggplot(bs3, aes(x = Residual)) +
+  geom_histogram(binwidth = 5, fill = "pink", colour = "black") +
+  xlab("Bootstrapped error") +
+  ylab("Number") +
+  ggtitle("Bootstrap replicate C" ,"(n = 20)")
+p_bsrep3 <- ggplot(bs3, aes(x = Prediction + Residual)) +
+  geom_histogram(binwidth = 5, fill = "pink", colour = "black") +
+  geom_vline(xintercept = mean(bs3$GJT), linetype = 2) +
+  xlab("Bootstrap replicates of outcome") +
+  ylab("Number") +
+  ggtitle("Bootstrap replicate C" ,"(n = 20)")
+
+# Bootstrapping
+bootstrap_1 <- replicate(20000, {
+  mean(sample(stichprobe1$GJT, size = 20, replace = TRUE))
+})
+
+df <- data.frame(means = bootstrap_1)
+p_bs <- ggplot(df, aes(x = means, y = after_stat(density))) +
+  geom_histogram(breaks = seq(90, 210, 2), fill = colours[1], colour = "black") +
+  xlab("bootstrapped means") +
+  ylab("Density") +
+  ggtitle("Distribution of bootstrapped means")
+
+gridExtra::grid.arrange(p_sample,
+                        p_bs1, p_bs2, p_bs3,
+                        p_bsrep1, p_bsrep2, p_bsrep3,
+                        p_bs,
+                        layout_matrix = matrix(c(NA, 1, NA,
+                                                 2, 3, 4,
+                                                 5, 6, 7,
+                                                 NA, 8, NA), ncol = 3, byrow = TRUE))
+@
+
+<<echo = FALSE, cache = TRUE, warning = FALSE, fig.cap = "The true sampling distribution of the sample mean of 20 \\textsc{gjt} observations as well as the distributions of bootstrapped means based on the five samples from Figure \\ref{fig:samplesfromdistribution}.\\label{fig:bootstrapdistributions}", echo = FALSE, fig.width = 1.7*3, fig.height = 1.7*8, out.width = ".5\\textwidth">>=
+df1 <- data.frame(means = bootstrap_1)
+
+# Bootstrapping
+bootstrap_2 <- replicate(20000, {
+  mean(sample(stichprobe2$GJT, size = 20, replace = TRUE))
+})
+df2 <- data.frame(means = bootstrap_2)
+
+bootstrap_3 <- replicate(20000, {
+  mean(sample(stichprobe3$GJT, size = 20, replace = TRUE))
+})
+df3 <- data.frame(means = bootstrap_3)
+
+bootstrap_4 <- replicate(20000, {
+  mean(sample(stichprobe4$GJT, size = 20, replace = TRUE))
+})
+df4 <- data.frame(means = bootstrap_4)
+
+bootstrap_5 <- replicate(20000, {
+  mean(sample(stichprobe5$GJT, size = 20, replace = TRUE))
+})
+df5 <- data.frame(means = bootstrap_5)
+
+minmax <- range(c(bootstrap_1, bootstrap_2, bootstrap_3, bootstrap_4, bootstrap_5))
+
+p_bs1 <- ggplot(df1, aes(x = means, y = after_stat(density))) +
+  geom_histogram(binwidth = 2, fill = colours[1], colour = "black") +
+  xlab("bootstrapped means") +
+  ylab("Density") +
+  ggtitle("Sample 1") +
+  xlim(minmax)
+
+p_bs2 <- ggplot(df2, aes(x = means, y = after_stat(density))) +
+  geom_histogram(binwidth = 2, fill = colours[2], colour = "black") +
+  xlab("bootstrapped means") +
+  ylab("Density") +
+  ggtitle("Sample 2")+
+  xlim(minmax)
+
+p_bs3 <- ggplot(df3, aes(x = means, y = after_stat(density))) +
+  geom_histogram(binwidth = 2, fill = colours[3], colour = "black") +
+  xlab("bootstrapped means") +
+  ylab("Density") +
+  ggtitle("Sample 3")+
+  xlim(minmax)
+
+p_bs4 <- ggplot(df4, aes(x = means, y = after_stat(density))) +
+  geom_histogram(binwidth = 2, fill = colours[4], colour = "black") +
+  xlab("bootstrapped means") +
+  ylab("Density") +
+  ggtitle("Sample 4")+
+  xlim(minmax)
+
+p_bs5 <- ggplot(df5, aes(x = means, y = after_stat(density))) +
+  geom_histogram(binwidth = 2, fill = colours[5], colour = "black") +
+  xlab("bootstrapped means") +
+  ylab("Density") +
+  ggtitle("Sample 5")+
+  xlim(minmax)
+
+p_stichprobenmittel <- ggplot(df_stichprobenmittel, aes(x = means)) +
+  geom_histogram(aes(y = after_stat(density)),
+                     binwidth = 2, fill = "darkgrey", colour = "black") +
+  xlab(expression(bar(x)))  +
+  xlim(minmax) +
+  ylab("Density") +
+  ggtitle("True sampling distribution")
+
+gridExtra::grid.arrange(p_stichprobenmittel,
+                        p_bs1, p_bs2, p_bs3, p_bs4, p_bs5,
+                        ncol = 1)
+@
+
+What Figure \ref{fig:bootstrapdistributions} also shows is that none of the distributions of
+the bootstrapped means is identical to the true sampling distribution of the sample mean.
+In particular, the bootstrap distributions are centred are the means of the samples
+they are based on, and samples with less empirical variance give rise to narrower bootstrap distributions.
+But \emph{on average}, the bootstrap distributions seem to give decent approximation of the shape
+and width of the true sampling distribution.
+This is also underscored by the numerical summary in Table \ref{tab:bootstrap}.
+
+\begin{table}[tbp]
+\centering
+\caption{Standard deviation (\textsc{sd}), 0.025 and 0.975 quantiles (i.e., 2.5th and 97.5th percentiles) and the difference between them for the true sampling distribution as well as for the five bootstrapped distributions in Figure \ref{fig:bootstrapdistributions}. Slight inconsistencies between the percentiles and the difference between them are due to rounding.}
+\label{tab:bootstrap}
+\begin{tabular}{lrrrr}
+\toprule
+Distribution of sample means    & \textsc{sd}  & 2.5th percentile  & 97.5th percentile & Interval width \\
+\midrule
+Actual (unknown)                & 6.1   & 139          & 163          & 24 \\
+\midrule
+Bootstrap based on sample 1     & 6.0   & 130          & 154          & 23 \\
+Bootstrap based on sample 2     & 7.0   & 139          & 167          & 28 \\
+Bootstrap based on sample 3     & 4.9   & 130          & 149          & 19 \\
+Bootstrap based on sample 4     & 6.5   & 133          & 158          & 25 \\
+Bootstrap based on sample 5     & 6.6   & 140          & 166          & 26 \\
+ \bottomrule
+\end{tabular}
+\end{table}
+
+Let's return to the original problem: We want to estimate the
+uncertainty we ought to have the mean of the \textsc{gjt} values based
+on a sample mean of 76 such observations.
+Let's apply the bootstrap procedure:
 <<cache = TRUE>>=
-# Step 1 (model already fitted)
+# Step 1 (model was already fitted)
 d$Prediction <- predict(mod.lm)
 d$Residual <- resid(mod.lm)
 
@@ -557,8 +1171,7 @@ for (i in 1:n_bootstrap) {
   # Step 2
   bs_resid <- sample(d$Residual, replace = TRUE)
   # Step 3
-  d <- d |> 
-    mutate(bs_outcome = Prediction + bs_resid)
+  d$bs_outcome <- d$Prediction + bs_resid
   # Step 4
   bs_mod <- lm(bs_outcome ~ 1, data = d)
   bs_b0[[i]] <- coef(bs_mod)[[1]]
@@ -566,73 +1179,95 @@ for (i in 1:n_bootstrap) {
 @
 
 A quick no-frills histogram of the $\widehat{\beta}_0^*$ values
-shows that these approximately form a normal distribution (Figure \ref{fig:histbootstrap}).
+shows that these approximately form a normal distribution (Figure \ref{fig:histbootstrap}):
 <<fig.cap = "A quick histogram of the bootstrapped $\\widehat{\\beta}_0$ estimates.\\label{fig:histbootstrap}", fig.width = 5, fig.height = 3.5>>=
 hist(bs_b0)
 @
 
-At this point, let's go over some {\bf basic facts of probability theory}.
-First, if $n$ observations are drawn randomly from a distribution with mean $\mu$,
-then the expected value of the mean of these $n$ observations equals exactly $\mu$.
-Put differently, if we draw lots of random samples from some distribution, then
-the mean of the sample means will equal the mean of the distribution from which 
-the samples were drawn.
-
-Second, if these $n$ observations were not only drawn randomly but also independently
-from a distribution and this distribution has variance $\sigma^2 < \infty$, 
-then the mean of the $n$ observations will fall in a distribution with variance $\sigma^2/n$.
-The standard deviation of this distribution, i.e., the square root of its variance ($\sigma / \sqrt{n}$),
-is referred to as the {\bf standard error} of the mean.
-
-Third, if the observations are drawn randomly and independently from a distribution with finite variance and the sample size $n$ tends to infinity, then the distribution of the sample means
-will converge to a normal distribution. As per the first and second point, this normal
-distribution has the same mean as the distribution from which the observations were drawn
-and variance $\sigma^2/n$. This fact is known as the 
-{\bf central limit theorem} (\textsc{clt}).
-
-What Figure \ref{fig:histbootstrap} essentially shows us is an estimate of what
-the sampling distribution of the $\widehat{\beta}_0$ estimate looks like, subject
-to the assumptions we've made in the semi-parametric bootstrap. The fact that
-this sampling distribution looks approximately normal shows the central limit 
-theorem at work.
 The standard deviation of the bootstrapped $\widehat{\beta}_0^*$ values provides us with
-an estimate of the standard error, i.e., the standard deviation
-of the sampling distribution of the parameter estimate. (Note that
-if you run the same commands, the outcome will be slightly different
-due to the randomness in step 2.)
+an estimate of the standard deviation of the sampling distribution. 
+An estimate of the standard deviation of a sampling distribution is referred to
+as a \term{standard error}, though this term is sometimes also used more loosely
+to refer to the actual standard deviation of a sampling distribution:
 <<>>=
 sd(bs_b0)
 @
-We could also use the second fact discussed above to estimate the standard error,
-plugging in the sample standard deviation for the unknown population standard 
-deviation ($\widehat{SE} = s/\sqrt{n}$). 
-Both approaches yield a very similar outcome:
+Since $\sigma_{\overline x} = \sigma / \sqrt{n}$, an alternative standard error
+can be obtained by plugging in the sample standard deviation $s$ for $\sigma$:
+\[
+  \sigma_{\overline x} = \frac{\sigma}{\sqrt{n}} \approx \frac{s}{\sqrt{n}}:
+\]
 <<>>=
 sd(d$GJT) / sqrt(nrow(d))
 @
+Both of these formulae tend to slightly underestimate the true standard deviation
+of the sampling distribution, more so for small samples.
+For the sample mean, the latter formula is more accurate.
+The advantage of the bootstrap for obtaining standard errors, though, 
+is that it can also be used when there aren't any neat formulae for computing
+standard errors like there is for the sample mean.
 
-A 95\% confidence interval around the parameter estimate can be constructed
-by looking up the 2.5th and 97.5th percentile of the distribution of $\widehat{\beta}_0^*$
+An \emph{approximate} 95\% \term{confidence interval} around the parameter estimate can be constructed
+by looking up the 2.5th and 97.5th percentile of the distribution of the $\widehat{\beta}_0^*$
 values:
 <<>>=
 quantile(bs_b0, probs = c(0.025, 0.975))
 @
-Alternatively, we could use the central limit theorem: look up the 
+Alternatively, we could use the central limit theorem: look up the
 2.5th and 97.5th percentiles of the standard normal distribution
-(with \texttt{qnorm()}), multiply these by the estimated standard error, and 
-translate the results by the parameter estimate:
+(with \texttt{qnorm()}), multiply these by the estimated standard error, and
+translate the results by the parameter estimate.
+Here, we use the more accurate standard error formula, but in case where it isn't available,
+the bootstrap-based estimate will do.
 <<>>=
 coef(mod.lm)[[1]] + qnorm(c(0.025, 0.975)) * sd(d$GJT) / sqrt(nrow(d))
 @
 
 In this example, the standard error estimates and confidence intervals
 produced by the bootstrap and the central limit theorem are essentially the
-same. This is a consequence of the 
+same. This is a consequence of the
 distribution of the $\widehat{\beta}_0^*$ values being normal.
 But this distribution doesn't \emph{have} to be normal.
 Indeed, what's nice about the bootstrap is that it can be used even when it is doubtful
-that the sampling distribution of the parameter estimate is approximately 
+that the sampling distribution of the parameter estimate is approximately
 normal.
+
+\mypar[Standard error for the sample median]{Example}
+  We've discussed the bootstrap in a \textsc{glm} setting, but it can be
+  applied much more broadly. Let's say we're interested in the median
+  of the \textsc{gjt} values and we want to obtain a standard error for it.
+  The code above only needs to be adapted slightly.
+<<fig.cap = "A quick histogram of the bootstrapped estimates for the median. Note that the distribution is far from normal!\\label{fig:histbootstrap_median}", fig.width = 5, fig.height = 3.5>>=
+# Step 1
+gjt_median <- median(d$GJT)
+d$Prediction <- gjt_median
+d$Residual <- d$GJT - gjt_median # difference between observed and predicted
+
+n_bootstrap <- 20000
+bs_b0 <- vector(length = n_bootstrap)
+
+for (i in 1:n_bootstrap) {
+  # Step 2
+  bs_resid <- sample(d$Residual, replace = TRUE)
+  # Step 3
+  d$bs_outcome <- d$Prediction + bs_resid
+  # Step 4
+  bs_b0[[i]] <- median(d$bs_outcome)
+}
+hist(bs_b0)
+# plot(ecdf(bs_b0)) # ecdf of bootstrapped medians; not shown
+sd(bs_b0) # standard error for median
+@
+Figure \ref{fig:histbootstrap_median} shows the distribution of the bootstrapped
+medians. Note that it is not at all normal.
+While no nice general formula for computing a standard error for the median
+is available, the bootstrap provides us with a useful approximation.
+A (conservative) procedure for computing confidence intervals is available
+for the median, but the following also constitutes an approximate 95\% confidence interval:
+<<>>=
+quantile(bs_b0, probs = c(0.025, 0.975))
+@
+\parend
 
 \subsection{The parametric bootstrap}
 In the previous section, we assumed that the distribution of the estimated
@@ -642,15 +1277,15 @@ assumption about the residual distribution, for instance, that this
 distribution is normal. Note the difference between this assumption and the assumption
 we made earlier. Now we're assuming that the residuals are randomly and independently
 drawn from a normal distribution; earlier, we assumed that the residuals were randomly
-and independently sampled from \emph{some} distribution, and it was the (estimated) 
-sampling distribution of $\widehat{\beta}_0$ that \emph{happened} to be roughly 
+and independently sampled from \emph{some} distribution, and it was the (estimated)
+sampling distribution of $\widehat{\beta}_0$ that \emph{happened} to be roughly
 normally distributed.
 
 Normal distributions are defined by two parameters:
 their mean $\mu$ and their variance $\sigma_{\varepsilon}^2$
 (or their standard deviation $\sigma_{\varepsilon}$).
 Since $\widehat{\beta}_0$ is equal to the sample mean, the mean of the residuals
-is always equal to 0.\footnote{The mean of the residuals is always equal to zero:
+is always equal to 0.\footnote{The mean of the deviations from the sample mean is always equal to zero:
 \[
   \frac{1}{n}\sum_{i = 1}^n \widehat{\varepsilon}_i
   = \frac{1}{n}\sum_{i = 1}^n (y_i - \widehat{\beta}_0)
@@ -664,12 +1299,13 @@ We can write down our assumptions like so:
   \varepsilon_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, \sigma_{\varepsilon}^2),
 \end{align*}
 for $i = 1, 2, \dots, n$.
-The standard deviation of residual distribution can be estimated 
+The standard deviation of the error distribution can be estimated
 from the estimated residuals like so:
 \[
-  \widehat{\sigma}_{\varepsilon} = \sqrt{\frac{1}{n - p} \sum_{i = 1}^n \widehat{\varepsilon}^2_i},
+  \widehat{\sigma}_{\varepsilon} = \sqrt{\frac{1}{n - d} \sum_{i = 1}^n \widehat{\varepsilon}^2_i},
 \]
-where $p$ is the number of estimated $\beta$ parameters (currently: $p = 1$).
+where $d$ is the number of estimated $\beta$ parameters (currently: $d = 1$,
+so $\widehat{\sigma}_{\varepsilon}$ is just the sample standard deviation).
 This estimate can be obtained using
 <<>>=
 sigma(mod.lm)
@@ -680,6 +1316,9 @@ But instead of sampling the $\widehat{\varepsilon}^*$ values with replacement
 from $\widehat{\varepsilon}$, we sample them from a normal distribution
 with mean 0 and standard deviation $\widehat{\sigma}_{\varepsilon}$:
 <<cache = TRUE>>=
+# Step 1
+d$Prediction <- predict(mod.lm)
+d$Residual <- resid(mod.lm)
 sigma_mod.lm <- sigma(mod.lm)
 
 n_bootstrap <- 20000
@@ -689,8 +1328,7 @@ for (i in 1:n_bootstrap) {
   # Step 2
   bs_resid <- rnorm(n = nrow(d), sd = sigma_mod.lm)
   # Step 3
-  d <- d |> 
-    mutate(bs_outcome = Prediction + bs_resid)
+  d$bs_outcome <- d$Prediction + bs_resid
   # Step 4
   bs_mod <- lm(bs_outcome ~ 1, data = d)
   bs_b0[[i]] <- coef(bs_mod)[[1]]
@@ -711,21 +1349,28 @@ quantile(bs_b0, c(0.025, 0.975))
 @
 
 While we assumed that the residual distribution was normal here,
-we can also apply the parametric bootstrap when making different assumptions
-about the residual distribution. 
+we could in principle also apply 
+the parametric bootstrap when making different assumptions
+about the residual distribution.
 We'd just have to plug in the corresponding sampling function in step 2.
+Further, an intermediate form between the semi-parametric bootstrap 
+and the parametric bootstrap is to apply a smoothing procedure 
+to the empirical distribution of the residuals 
+(e.g., kernel density estimation) and sample from the smoothed distribution.
+But we won't concern ourselves with such alternative tools.
 
 \subsection{t-distributions}
-If we're happy to assume that the residuals are drawn from a normal distribution,
+If we're happy to assume that the errors were drawn from a normal distribution,
 we can compute the standard error estimates and confidence intervals directly,
-without the bootstrap. The formulae aren't too informative; let's skip straight
-to how to obtain the results in R:
+without the bootstrap. 
+The formulae aren't too informative; 
+let's skip straight to how to obtain the results in R:
 <<>>=
 summary(mod.lm)
 @
 For reasons that'll become clear shortly,
 the $\beta_0$ estimate is referred to as \texttt{(Intercept)}.
-The column with the \texttt{Std.\ Error} lists the estimated standard
+The column with the \texttt{Std.\ Error} lists the standard
 error; the \texttt{t value} and \texttt{Pr(>|t|)} values correspond
 to the $t$- and $p$-values you may know from introductory statistics.
 
@@ -739,12 +1384,19 @@ when running a one-sample $t$-test on the data:
 <<>>=
 t.test(d$GJT)
 @
-Indeed, you can think of the one-sample $t$-test as but one instantiation 
+Indeed, you can think of the one-sample $t$-test as but one instantiation
 of the general linear model.
 
-\subsection{Excursion: Maximum likelihood estimation}
+If the assumption of normality isn't met, the confidence intervals
+and $p$-values may still be approximately valid, especially for large $n$.
+When in doubt, it doesn't hurt to also use a semi-parametric bootstrap
+to verify the confidence intervals obtained using $t$-distributions.
+While bootstrap procedures for computing $p$-values exist, they'd take
+us too far. Instead, you may want to look into permutation tests \citep[see][for overviews]{Ernst2004,Hesterberg2014}.
+
+\section{Excursion: Maximum likelihood estimation}
 There's an alternative method for obtaining parameter estimates:
-maximum likelihood estimation (\textsc{mle}).
+\term{maximum likelihood estimation} (\textsc{mle}).
 You'll encounter this estimation method when you start to dabble in more
 complex methods such as generalised linear models.
 Feel free to skip this section
@@ -773,25 +1425,24 @@ of $\widehat{\mu}$ that maximises the log-likelihood also maximises
 the likelihood. In sum, we choose $\widehat{\mu}$ as follows:
 \begin{align*}
   \widehat{\mu}
-  &= \argmax_{\mu} \left(\prod_{i = 1}^n \frac{1}{\sqrt{2\pi} \sigma}\exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right) \\
-  &= \argmax_{\mu} \left(\prod_{i = 1}^n \exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right) \\
-  &= \argmax_{\mu} \log\left(\prod_{i = 1}^n \exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right) \\
-  &= \argmax_{\mu} \sum_{i = 1}^n \log\left(\exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right) \\
-  &= \argmax_{\mu} - \sum_{i = 1}^n \frac{(y_i - \mu)^2}{2\sigma^2} \\
-  &= \argmax_{\mu} -\sum_{i = 1}^n (y_i - \mu)^2 \\
+  &= \argmax_{\mu} \left(\prod_{i = 1}^n \frac{1}{\sqrt{2\pi} \sigma}\exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right)
+  &\\
+  &= \argmax_{\mu} \left(\prod_{i = 1}^n \exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right)
+  & [\textrm{Scaling factor doesn't affect argmax.}]\\
+  &= \argmax_{\mu} \log\left(\prod_{i = 1}^n \exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right)
+  & [\textrm{Take log.}]\\
+  &= \argmax_{\mu} \sum_{i = 1}^n \log\left(\exp\left(-\frac{(y_i - \mu)^2}{2\sigma^2}\right)\right)
+  & [\log ab = \log a + \log b]\\
+  &= \argmax_{\mu} - \sum_{i = 1}^n \frac{(y_i - \mu)^2}{2\sigma^2}
+  & [\log (\exp x) = x]\\
+  &= \argmax_{\mu} -\sum_{i = 1}^n (y_i - \mu)^2
+  & [\textrm{$1/(2\sigma^2)$ is also a scaling factor.}]\\
   &= \argmin_{\mu} \sum_{i = 1}^n (y_i - \mu)^2.
+  & [\textrm{Maximising $-x$ is same as minimising $x$.}]
 \end{align*}
 
-
-(Line 1 to 2: The scaling factor doesn't matter, so drop it.
-Line 2 to 3: Take the logarithm. 
-Line 3 to 4: $\log ab = \log a + \log b$.
-Line 4 to 5: $\log(\exp(x)) = x$.
-Line 5 to 6: The factor $1/(2\sigma^2)$ is just a scaling factor and doesn't matter.
-Line 6 to 7: Maximising $-x$ is the same as minimising $x$.)
-
 We end up with exactly the same optimisation problem as when minimising
-the sum of squared residuals! So the solution is the same:
+the sum of squared residuals! So the solution is the same, too,
 \[
   \widehat{\mu} = \frac{1}{n} \sum_{i = 1}^n y_i.
 \]
@@ -800,7 +1451,8 @@ In conclusion, when working with the general linear model,
 we obtain the same $\beta$ estimates regardless of whether we're
 using the method of least squares (without making any assumptions about
 the data) or using maximum likelihood estimation under the assumption
-of i.i.d.\ normal data. In the generalised linear model,
+of i.i.d.\ normal data. 
+In the generalised linear model,
 the method of least squares isn't available or attractive, and parameter
 estimates are usually obtained using maximum likelihood estimation
 or some variation thereof.
@@ -809,7 +1461,7 @@ or some variation thereof.
 Model assumptions enter into the data analysis at some point,
 be it when estimating the model parameters (using maximum likelihood)
 or when estimating the uncertainty about these estimates.
-But how important are these assumptions about independence, homoskedasticity
+But how important are these assumptions about independence, equality of distributions
 and -- when using $t$-distributions or maximum likelihood -- normality?
 
 The independence assumption is essential. If it is violated, the uncertainty
@@ -817,7 +1469,7 @@ about the parameter estimates may be massively underestimated using the
 methods covered in this lecture series. Deciding whether this assumption is
 justified typically requires knowledge about how the data were collected.
 
-The homoskedasticity assumption isn't too relevant just yet, but we will
+The assumption that the distributions are the same for different error terms isn't too relevant just yet, but we will
 come back to it in the next lectures.
 
 The normality assumption is typically the least important of the three.
@@ -834,20 +1486,19 @@ In my view, you shouldn't worry too much about the normality and homoskedasticit
 assumptions. What you should ask yourself instead, however, is whether the model
 you want to fit and the statistics you want to compute are at all {\bf relevant}
 in the context of your study and in light of your data. Consider the data in
-Figure \ref{fig:skewed}. It seems unlikely that the residuals were drawn from a normal
+Figure \ref{fig:skewed}. It seems unlikely that the errors were drawn from a normal
 distribution. But rather than fit these data in a general linear model and then
-worry about the normality violation, you ought to ask yourself whether 
+worry about the normality violation, you ought to ask yourself whether
 whatever research question you have can sensibly be answered in terms of the
 mean of these data. For this example, this seems unlikely, and a more pressing
 question presents itself: Where does the outlier come from?
-If, by contrast, you do think that the mean is a sensible statistic to
+If, by contrast, you do think that the mean \emph{is} a sensible statistic to
 compute in light of your research question and your data, then normality violations
 are unlikely to affect your results -- but you can always verify those
 results using the semi-parametric bootstrap.
 Drawing plots of your data, both for yourself and for your readership, is essential
 in ensuring that your numeric analyses are relevant to the research questions
-at hand. Also see my blog post \href{https://janhove.github.io/posts/2019-04-11-assumptions-relevance/}{\textit{Before worrying about model assumptions, think about model relevance}}
-as well as \citet{Vanhove2020b}.
+at hand. Also see \citet{Vanhove2020b}.
 
 <<echo = FALSE, fig.cap = "You probably \\emph{could} fit these data in a general linear model. But the mean (dashed vertical line) just isn't an informative measure of these data's central tendency. So why bother?\\label{fig:skewed}">>=
 set.seed(2023-02-14)
@@ -861,41 +1512,30 @@ abline(v = mean(x), lty = 2)
   \item We can think of our individual outcome data as being composed
   of some communality between all our outcome data and individual
   discrepancies.
-  
+
   \item It is usually the communality that is of interest.
   This can be estimated using the discrepancies (residuals)
   and some optimisation criterion.
 
   \item Unless otherwise mentioned, the method of least squares is
-  the optimisation criterion used. When working with a single 
+  the optimisation criterion used. When working with a single
   outcome and no predictors, this yields the sample mean.
   But other optimisation criteria do exist.
-  
+
   \item We can estimate the uncertainty in the parameter estimates
   using some version of the bootstrap or by making further assumptions.
-  
-  \item Rather than worry about normality, ask yourself whether
+
+  \item Rather than worry too much about normality, ask yourself whether
   what you want to compute is actually relevant in light of your research
-  questions and your data.
+  questions and your data. If it is and you still have nagging doubts,
+  use the semi-parametric bootstrap (or some similar procedure) to construct
+  confidence bounds or to verify the results obtained using $t$-distributions.
 \end{itemize}
 
-\subsection*{Exercises}
-\begin{enumerate}
-  \item (Paper and pencil.) The distribution generated by throws of a fair six-sided dice
-  has mean $\mu = 3.5$ and variance of $\sigma^2 = 2.91\overline{6}$.
-  You throw the dice 9 times and you jot down the average number of pips observed.
-  The throws can be assumed to be independent.
-  What do you know about the sampling distribution of the average number of pips observed?
-  
-  \item (With R.) Read in the DeKeyser et al.\ data as explained in Section \ref{data:dekeyser},
-  fit the model as we did above,
-  and run the semi-parametric bootstrap using the code provided in Section \ref{sec:semiparametric};
-  you can set the \texttt{n\_bootstrap} value to 2000 instead of 20000 to speed up the computation.
-  Compute 90\% (not 95\%!) confidence intervals for the $\widehat{\beta}_0$ estimate using
-  both the bootstrapped sampling distribution and the central limit theorem.
-\end{enumerate}
+\subsection*{Suggested reading}
+\citet{Hesterberg2014} is a trove of accessibly presented information on the bootstrap.
 
-\bibliographystyle{unified}
-\bibliography{bibliography}
+\bibliographystyle{../../../unified}
+\bibliography{../../../bibliography}
 
 \end{document}
