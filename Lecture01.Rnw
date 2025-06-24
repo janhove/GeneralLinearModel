@@ -929,7 +929,7 @@ Problems with dependencies between errors can be tackled in a number of ways,
 with one popular approach since 2008 or so being the use of mixed-effects models.
 Problems having to do with different errors stemming from different distributions
 usually aren't as detrimental, but, if necessary, they can be tackled in a few ways 
-(e.g., generalised least squares models, nonparametric bootstrapping).
+(e.g., generalised least squares models, nonparametric bootstrapping; see \citealp{Zuur2009}, and \citealp{Hesterberg2014}, respectively, for accessible introductions).
 
 We'll have more to say about modelling assumptions later.
 Let's now turn to the matter of estimating the extent of the uncertainty
