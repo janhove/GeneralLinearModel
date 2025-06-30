@@ -50,5 +50,5 @@ pava <- function(x, y, plot = TRUE) {
     lines(unique(x), f, col = "blue")
   }
   
-  return(f)
+  f
 }
