@@ -5,6 +5,8 @@
 \setstretch{1.25}
 \usepackage{parskip}
 
+\usepackage{fancyhdr}
+
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 
@@ -38,6 +40,8 @@
 \usepackage[export]{adjustbox}
 \usepackage{booktabs}
 \usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+\renewcommand{\thefigure}{6.\arabic{figure}}
+\renewcommand{\thetable}{6.\arabic{table}}
 
 % Define a new counter for theorems, lemmas, remarks, etc.
 \newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
@@ -127,6 +131,14 @@ op <- par()
 
 \begin{document}
 
+\pagestyle{fancy}
+\fancyhead{} % clear
+\fancyfoot{}
+\fancyhead[L]{The general linear model: Lecture 6}
+\fancyfoot[C]{\thepage}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+
 \maketitle
 
 Up till now, we've only dealt with outcome variables that we considered to
@@ -190,15 +202,16 @@ If Program B is adopted, there is a 1/3 probability
 that nobody will die, and a 2/3 probability
 that 600 people will die.''
 \end{quote}
-Note that the consequences of Programme A is the same regardless of how its
-consequences are framed, and the same goes for Programme B. Note furthermore
-that in both programmes, 400 people are expected to die. The only difference
-is that this is a certainty in Programme A and a probabilistic expectation
-in Programme B.
+Note that the outcome of Programme A is the same regardless of how its
+consequences are framed, and the same goes for Programme B. 
+Note further that both programmes have the same expected value in terms
+of lives saved, namely 200.
+The only difference is that this is a certainty in Programme A 
+and a probabilistic expectation in Programme B.
 Table \ref{tab:tversky} shows how the participants' preferences varied between
 the framing conditions.
 
-\begin{table}[]
+\begin{table}[tbp]
 \centering
 \caption{Number of choices for Programme A and Programme B depending on how the programmes were presented \citep{Tversky1981}.}
 \label{tab:tversky}
@@ -340,7 +353,7 @@ plogis(0.93)
 @
 Figure \ref{fig:logodds} shows that the logistic function looks like.
 
-<<echo = FALSE, out.width=".5\\textwidth",fig.width = 0.6*7, fig.height = 0.6*5, fig.cap = "The logistic function onverts log-odds into probabilities.\\label{fig:logodds}">>=
+<<echo = FALSE, out.width=".5\\textwidth",fig.width = 0.6*7, fig.height = 0.6*5, fig.cap = "The logistic function converts log-odds into probabilities.\\label{fig:logodds}">>=
 library(tidyverse)
 theme_set(theme_bw())
 
@@ -385,7 +398,7 @@ in a linear model and then backtransforming these into probabilities:
 \end{align*}
 where $x_i = 1$ if the $i$-th participant was presented the scenario
 with loss framing and $x_i = 0$ otherwise and where $X_1, \dots X_{307}$
-are independently distributed.
+are independent.
 
 The model parameters are estimated using maximum likelihood estimation,
 which was mentioned at the end of Lecture 1. In brief, we
@@ -488,11 +501,7 @@ that is also expressed in percentages, consider fitting a linear probability mod
   only approximate confidence procedures (based on asymptotic results) are available.
   That said, it is possible to apply (parametric) bootstrap and permutation procedures
   that may be more reliable for smaller samples in particular.
-  We don't cover these in this introduction.
 \parend
-
-Generalised linear models can accommodate multiple predictors, as in the following
-exercise.
 
 \mypar[Linear probability model done better]{Remark}
   Having introduced the \rcode{glm()} function, we can now fit the 
@@ -501,11 +510,11 @@ exercise.
   \begin{align*}
     X_i &\sim \textrm{Bernoulli}(p_i), \nonumber \\
     p_i &= \eta_i, \nonumber \\
-    \eta_i &= \beta_0 + \beta_1x_i. \nonumber \\
+    \eta_i &= \beta_0 + \beta_1x_i, \nonumber
   \end{align*}
+  $i = 1, \dots, n$.
   Compared to the logistic model, the only difference is that the link
-  function is the identity (i.e., $\eta \mapsto \eta$) instead of the logistic
-  function (i.e., $\eta \mapsto 1/(1 + \exp(-\eta))$).
+  function is the identity (i.e., $\eta \mapsto \eta$) instead of the logit function.
   In contrast to the general linear models considered earlier, 
   there aren't any error terms in this model!
   So instead of using \rcode{lm()}, which estimates error variance,
@@ -517,6 +526,15 @@ summary(lpm.glm)$coefficients
 @
   Compare the output of this model to the output of the model \rcode{tversky.lm}.
 \parend
+
+\mypar[Significance tests for $2 \times 2$-tables]{Remark}
+If a full-fledged model isn't required, 
+it is possible to calculate exact $p$-values for $2 \times 2$ contingency tables.
+See my blogpost \href{https://janhove.github.io/posts/2024-09-10-contingency-p-value/}{\textit{Exact significance tests for $2 \times 2$ tables}} for details.
+\parend
+
+Generalised linear models can accommodate multiple predictors, 
+as in the following exercise.
 
 \mypar[Fitting interactions]{Exercise}
 \citet{Keysar2012} extended the experiment by \citet{Tversky1981}
@@ -597,12 +615,116 @@ Explain what the parameter estimates for \texttt{(Intercept)},
 \texttt{n.language} and \texttt{n.framing} mean.
 \parend
 
+\mypar[Confidence intervals using parametric bootstrapping]{Remark}
+The confidence intervals for the model parameters rely on large-sample approximations.
+One option to verify them is to apply a parametric bootstrap.
+To this end, we generate new outcome data from the fitted model
+(using \rcode{simulate()}) and then refit the model on these new outcome data
+and store the parameter estimates we're interested in.
+The following code snippet constructs a 95\% confidence interval for the
+interaction parameter using the parametric bootstrap and the percentile method.
+<<cache = TRUE>>=
+B <- 20000
+interaction_bs <- vector(length = B)
+for (i in 1:B) {
+  choice_y <- unlist(simulate(keysar.glm))
+  keysar_bs <- glm(choice_y ~ n.language + n.framing + interaction,
+                   data = d, family = binomial(link = "logit"))
+  interaction_bs[[i]] <- coef(keysar_bs)[[4]]
+}
+# hist(interaction_bs)
+quantile(interaction_bs, probs = c(0.025, 0.975))
+@
+
+The upper end of this confidence interval is a fair bit higher than the 
+approximate one you can compute using \rcode{confint()}.
+\parend
+
+\mypar[$p$-values in the generalised linear model]{Remark}
+We haven't discussed $p$-values much in this lecture series.
+But I'd like to really drive home the point that statistical inference
+in the generalised linear model relies on large-sample approximations
+and that different methods for computing $p$-values may give different results.
+
+The first large-sample approximation method is the \term{Wald method}, which can be obtained using \texttt{summary()}.
+In the present example, the Wald $p$-value for the interaction term is $p = 0.111$ ($z = 1.60$).
+<<>>=
+summary(keysar.glm)$coefficients
+@
+The second large-sample approximation method is the \term{likelihood ratio test}.
+It tends to be more accurate than Wald's method and requires you to fit 
+a null model. In the present example, this would be a model with main effects
+for language and framing but no interaction effect.
+A model comparison using the \rcode{anova()} function yields $p = 0.108$ ($\chi^2_1 = 2.59$).
+Note though that this analysis is not an analysis of variance that you may have encountered
+elsewhere but a so-called analysis of deviance. (We won't go into the concept of deviance,
+but it is closely related to the ratio of the likelihoods of the models being compared.)
+<<>>=
+null_model <- glm(sure_choice ~ n.language + n.framing,
+                  data = d, family = binomial(link = "logit"))
+anova(null_model, keysar.glm, test = "LRT")
+@
+
+The third large-sample approximation method is the \term{score test},
+which yields $p = 0.109$ ($\chi^2_1 = 2.57$):
+<<>>=
+anova(null_model, keysar.glm, test = "Rao")
+@
+Of these three large-sample approximations, the likelihood-ratio test is
+to be preferred. That said, it relies on the differences in the deviances
+following a $\chi^2$ distribution under the null hypothesis, which may not
+be a reasonable assumption for small datasets.
+
+
+Alternatively, we can use a technique similar to the parametric bootstrap:
+We generate new outcome data \emph{under the fitted null model}
+and the fit the full model. We then count in how many cases the 
+estimated interaction term in the models fitted on the null data
+was at least as extreme as the interaction term that we estimated for the actual
+data. This proportion serves as a $p$-value -- in our case, $p = 0.118$.
+<<cache = TRUE>>=
+B <- 20000
+interaction_bs <- vector(length = B)
+for (i in 1:B) {
+  choice_y <- unlist(simulate(null_model)) # simulate under null!
+  keysar_bs <- glm(choice_y ~ n.language + n.framing + interaction,
+                   data = d, family = binomial(link = "logit"))
+  interaction_bs[[i]] <- coef(keysar_bs)[[4]]
+}
+# hist(interaction_bs)
+# abline(v = coef(keysar.glm)[[4]], col = "blue", lty = "dashed")
+mean(abs(interaction_bs) >= abs(coef(keysar.glm)[[4]]))
+@
+
+We could also carry out a bootstrap version of the likelihood ratio test,
+which yields a $p$-value of $0.114$.
+<<cache = TRUE>>=
+B <- 20000
+lrt_bs <- vector(length = B)
+for (i in 1:B) {
+  choice_y <- unlist(simulate(null_model)) # simulate under null!
+  # fit both null and full model to data
+  null_bs <- glm(choice_y ~ n.language + n.framing,
+                   data = d, family = binomial(link = "logit"))
+  keysar_bs <- glm(choice_y ~ n.language + n.framing + interaction,
+                   data = d, family = binomial(link = "logit"))
+  # compare fitted models
+  lrt_bs[[i]] <- anova(null_bs, keysar_bs, test = "LRT")[2, 4]
+}
+observed_lrt <- anova(null_model, keysar.glm, test = "LRT")[2, 4]
+mean(lrt_bs >= observed_lrt)
+@
+Note that with the bootstrap procedure, the results will vary slightly from
+run to run due to the randomness involved in simulating the new observations.
+\parend
+
 \section{Continuous predictors}
-You can also fit continuous predictors in the generalised linear model. By way of example, we'll take a look
+You can also fit continuous predictors in the generalised linear model.
+To illustrate the procedure, we'll take a look
 at how well one of the participants in \citet{Vanhove2013b}
 translated 181 words from languages she did not know
 depending on the orthographic overlap (expressed on a scale from 0 to 10) between these 
-words and their translation.\footnote{If we wanted to model the data of all participants,
+words and their translations.\footnote{If we wanted to model the data of all participants,
 we would need logistic mixed-effects models, which are well outside the scope
 of this lecture.}
 
@@ -689,6 +811,11 @@ see \url{https://janhove.github.io/visualise_uncertainty/}.
 
 \section*{Recommended reading}
 We've only scratched the surface.
+While we've covered the logit and the identity link function, 
+other link functions exist (e.g., probit, complementary-log-log).
+We haven't mentioned overdispersion at all, either.
+Further, some useful extensions of logistic (binary) regression include
+multinomial regression and different kinds of ordinal regression.
 \citet{Agresti2002} is the go-to reference for categorical data analysis.
 
 \bibliographystyle{../../../unified}
