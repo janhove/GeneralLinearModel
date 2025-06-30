@@ -5,6 +5,8 @@
 \setstretch{1.25}
 \usepackage{parskip}
 
+\usepackage{fancyhdr}
+
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 
@@ -38,6 +40,8 @@
 \usepackage[export]{adjustbox}
 \usepackage{booktabs}
 \usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+\renewcommand{\thefigure}{3.\arabic{figure}}
+\renewcommand{\thetable}{3.\arabic{table}}
 
 % Define a new counter for theorems, lemmas, remarks, etc.
 \newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
@@ -126,6 +130,15 @@ op <- par()
 @
 
 \begin{document}
+
+\pagestyle{fancy}
+\fancyhead{} % clear
+\fancyfoot{}
+\fancyhead[L]{The general linear model: Lecture 3}
+\fancyfoot[C]{\thepage}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+
 \maketitle
 
 The general linear model can be used to model differences between two or more
@@ -158,7 +171,7 @@ d <- read_csv(here("data", "Klein2014_money_abington.csv"))
 
 A sensible default choice when plotting a group comparison on a continuous
 outcome is to use {\bf boxplots}. The standard implementation is shown in Figure \ref{fig:boxplotklein1},
-but I prefer to overlay the individual data points, too. Boxplots can sometimes
+but I prefer to add the individual data points, too. Boxplots can sometimes
 deceive, and adding the individual data points helps both us and our readers
 gauge what the data actually look like; see Figure \ref{fig:boxplotklein2};
 also see \citet{Weissgerber2015}.
@@ -461,7 +474,7 @@ $x_{2,i}$ represents their value on the second dummy variable.
 mod.lm <- lm(ProportionCongruent ~ Information + Strategy, data = d)
 mod.lm
 @
-The interpretation of these parameter estimates is analogous to what we discussed
+The interpretation of these parameter estimates is analogous to what we've discussed
 in the previous section. The intercept estimate is the conditional mean
 for the group that was coded as 0 on both dummy variables, i.e., the no information
 condition. 
@@ -486,6 +499,7 @@ about the intercept estimate isn't of too much interest here, but it is computed
 confint(mod.lm, level = 0.90)
 @
 
+\mypar[Obtaining directly interpretable regression coefficients]{Tip}
 While we used treatment coding here, other coding systems exist, and these
 may be more directly useful for you, depending on what you want to find out.
 For instance, we could code the dummy variables in such a way that $\widehat{\beta}_2$
@@ -496,6 +510,7 @@ This technique is extremely useful as it often enables you to read off
 the answers to your research questions directly from the model output,
 as opposed to your having to piece together an answer based on several
 parameter estimates.
+\parend
 
 \mypar{Tip}
 {\bf Know what your parameter estimates refer to.} It is vital that you know
@@ -503,22 +518,37 @@ what the numbers in the output of your model literally mean before you try to
 interpret them in terms of your subject matter.
 \parend
 
+\mypar[Recoding categorical predictors]{Exercise}
+  Read Example 1 on \url{https://janhove.github.io/posts/2020-05-05-contrast-coding/}.
+  Now recode the conditions in the \citet{Vanhove2017} data in such a way
+  that the $\beta_0$ parameter expresses the grand mean of \texttt{ProportionCongruent}
+  (that is, the mean of the three condition means), the $\beta_1$ parameter expresses
+  the difference between the mean in the \texttt{no information} condition
+  and the mean of the means of the other two conditions, 
+  and the $\beta_2$ parameter expresses the difference between the mean of the
+  \texttt{information} condition and that of the \texttt{strategy} condition.
+  Fit the model and verify if the estimated parameters are correct by comparing
+  them to the condition means.
+\parend
+
 \mypar[Semi-parametric bootstrap without homoskedasticity assumption]{Exercise}
   In the analyses in this lecture, we estimated standard errors and constructed
-  confidence intervals based on the assumption that the residuals were i.i.d.\ normal. We can
-  check whether we obtain similar results when we make different assumptions.
+  confidence intervals based on the assumption that the residuals were i.i.d.\ normal. 
+  We can check whether we obtain similar results when making different assumptions.
   To that end, we can run a semi-parametric bootstrap in which the bootstrapped residuals
-  in a given condition are only sampled from that distribution. This way, we don't
-  assume that the residuals are drawn from a normal distribution, and we acknowledge
-  the possibility that the residuals in different conditions are drawn from different distributions.
+  in a given condition are only sampled from that condition. 
+  This way, we don't assume that the residuals are drawn from a normal distribution, 
+  and we acknowledge the possibility 
+  that the residuals in different conditions are drawn from different distributions.
   
   The code below is similar to that of the previous semi-parametric bootstraps;
   the only thing that was added is the \texttt{group\_by(Condition)} call in the \textit{for}-loop.
   This splits up the dataset into groups by \texttt{Condition} so that the 
-  resampling of the \texttt{Residual} values in line 20 only happens within each condition.
+  resampling of the \texttt{Residual} values on the next line only happens 
+  within each condition.
   In other words, a residual value in the information condition can only 
-  be reassigned to another observation in the information condition, and similary
-  for the other conditions.
+  be reassigned to another observation in the information condition, 
+  and similarly for the other conditions.
   
   Copy this code (ideally by typing rather than copy-pasting it; you'll learn more this way)
   and run it. How would the conclusions you draw from this analysis differ from the ones
@@ -550,7 +580,7 @@ for (i in 1:n_bootstrap) {
 apply(bs_b, 2, sd)
 apply(bs_b, 2, quantile, prob = c(0.025, 0.975))
 @
-Adapt this code in order to double-check the confidence
+Now adapt this code in order to double-check the confidence
 intervals from the money priming example.
 \parend
 
