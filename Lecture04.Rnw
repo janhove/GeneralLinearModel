@@ -5,6 +5,8 @@
 \setstretch{1.25}
 \usepackage{parskip}
 
+\usepackage{fancyhdr}
+
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 
@@ -38,6 +40,8 @@
 \usepackage[export]{adjustbox}
 \usepackage{booktabs}
 \usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+\renewcommand{\thefigure}{4.\arabic{figure}}
+\renewcommand{\thetable}{4.\arabic{table}}
 
 % Define a new counter for theorems, lemmas, remarks, etc.
 \newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
@@ -127,6 +131,14 @@ op <- par()
 
 \begin{document}
 
+\pagestyle{fancy}
+\fancyhead{} % clear
+\fancyfoot{}
+\fancyhead[L]{The general linear model: Lecture 4}
+\fancyfoot[C]{\thepage}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+
 \maketitle
 
 Often, researchers aren't so much interested in how one predictor variable
@@ -200,13 +212,13 @@ that the boy's name was Dragan (a name suggesting a Balkan migration background)
 Moreover, for about half of the participants, the recording contained
 code-switches from German; for about half, it didn't.
 \citet{Berthele2011b} wanted to find out how the purported name and the presence
-or absence of code-switches affect the teacher trainees' judgements
+or absence of code-switches affected the future teachers' judgements
 of the boy's academic potential.
 
 \subsection{Data visualisation}
 Let's read in the data and plot them.
 
-<<out.width = '.5\\textwidth', fig.width = 1.4*2.5, fig.height = 1.4*2.2, fig.cap = "A first attempt at plotting the data. The patterns in the data aren't so clear because the data are too coarse for boxplots.\\label{fig:berthelebp1}">>=
+<<out.width = '.6\\textwidth', fig.width = 1.6*2.5, fig.height = 1.1*2.2, fig.cap = "A first attempt at plotting the data. The patterns in the data aren't so clear because the data are too coarse for boxplots.\\label{fig:berthelebp1}">>=
 library(tidyverse)
 theme_set(theme_bw())
 library(here)
@@ -219,7 +231,7 @@ ggplot(d,
   geom_boxplot(outlier.shape = NA) +
   geom_point(shape = 1,
              position = position_jitter(width = 0.2, height = 0)) +
-  facet_grid(rows = vars(CS))
+  facet_grid(cols = vars(CS))
 @
 
 While boxplots are a reasonable first choice,
@@ -228,6 +240,9 @@ plot in this way. Alternatively, we could compute the mean potential rating
 for each combination of predictor variables and plot these means. But then
 we wouldn't know how the data underlying these means are distributed;
 Figure \ref{fig:berthelebp2}.
+Such information is useful both to yourself and to your readers as they
+help you and them gauge if the means are a relevant indicator of the
+tendencies in the data.
 
 <<fig.width = 1.2*3, fig.height = 1.2*1.8, fig.cap = "The trends in the data are clearer here, but we can't glean the distribution of the data from this plot.\\label{fig:berthelebp2}", out.width = ".5\\textwidth">>=
 summary_berthele <- d |> 
@@ -294,8 +309,10 @@ four $\beta$ parameters.
 
 The model equation is as follows:
 \[
-  y_i = \beta_0 + \beta_1 \cdot x_{1,i} + \beta_2 \cdot x_{2,i} + \beta_3 \cdot (x_{1,i} \cdot x_{2,i}) + \varepsilon_i.
+  y_i = \beta_0 + \beta_1 \cdot x_{1,i} + \beta_2 \cdot x_{2,i} + \beta_3 \cdot (x_{1,i} \cdot x_{2,i}) + \varepsilon_i,
 \]
+$i = 1, \dots, 155$. 
+If we want to use treatment coding, the predictors can be coded as follows:
 \begin{itemize}
  \item $x_{1,i}$ indicates whether the $i$-th participant was told that the boy's name was Dragan (1) or Luca (0).
  \item $x_{2,i}$ indicates whether the $i$-th participant rated a recording with (1) or without (0) code-switches. 
@@ -354,11 +371,10 @@ rounding errors were corrected:
   \]
 \end{itemize}
 
-Note, incidentally, that we are using {\bf treatment coding} here.
-As a result, the estimate
-of $0.53$ for \texttt{Dragan} \emph{only} pertains to the recording without
+Since we're using treatment coding,
+the estimate of $0.53$ for \texttt{Dragan} \emph{only} pertains to the recording without
 code-switches (the level coded as 0). In order to obtain difference between the estimated conditional
-means between Luca and Dragan when the recording contais code-switches, you
+means between Luca and Dragan when the recording contains code-switches, you
 need to include the interaction terms: $0.53 - 0.93 = -0.40$.
 Similarly, the estimate of $0.27$ for \texttt{WithCS} only pertains to ratings
 of `Luca' (the level coded as 0). In order to obtain the difference between
@@ -436,7 +452,7 @@ be framed in several equivalent ways.)\label{par:finding_berthele}
 
 \mypar{Exercise}
 The main finding in \citet{Berthele2011b} was the 
-  interaction effect of $-0.93 \pm 0.28$ points (90\% CI: $[-1.40, -0.47]$).
+  interaction effect of $-0.9 \pm 0.3$ points (90\% CI: $[-1.39, -0.48]$).
   Double-check this estimated standard error and the 90\% confidence interval
   using a semi-parametric bootstrap that does not assume that the errors
   are drawn from the same distribution, as explained in Lecture 3.
@@ -511,7 +527,7 @@ It's also possible to fit interactions between three or more predictors.
 However, it can be difficult to make sense of three-way, four-way, etc.\ interactions,
 and I don't have any datasets that call for such an analysis.
 
-\section{A word of warning}
+\section{About non-cross-over interactions}
 The mere fact that a statistical model suggests that two predictor variables
 interact in their effect on some outcome variable
 does \emph{not} imply that these predictor variable interact in their effect
@@ -528,6 +544,46 @@ transform the data so that the interaction disappears.
 By the same token, if there is \emph{no} interaction, it is typically possible
 to monotonically transform the data so that an interaction appears.
 See \citet{Wagenmakers2012} for further explanation.
+
+\mypar{Example}
+  A straightforward example may help make the problem more concrete.
+  Let's say we want to compare the fuel use of two drivers in two cars.
+  Fuel use is typically expressed in either litres needed to travel 100 kilometres
+  or in miles that can be travelled using one gallon; see Table \ref{tab:fuel}.
+
+\begin{table}[tbp]
+\centering
+\caption{Fictitious data of fuel use for two drivers and two cars.}
+\label{tab:fuel}
+\begin{tabular}{llrr}
+\toprule
+Car    & Driver   & Litres per 100 kilometres  & Miles per gallon \\
+\midrule
+Car 1  & Driver A & 6.5 &  36.2 \\
+       & Driver B & 7.0 &  33.6\\
+Car 2  & Driver A & 5.5 &  42.8\\
+       & Driver B & 6.0 &  39.2\\
+ \bottomrule
+\end{tabular}
+\end{table}
+
+When fuel use is expressed in litres per 100 kilometres,
+the data in this fictitious example shows two clear main effects:
+Driver B needs half a litre per 100 kilometres more than does Driver A (regardless
+of the car),
+and Car 1 needs a litre per 100 kilometres more than does Car 2 (regardless of the driver).
+So there is no interaction term needed to capture fuel use in this example.
+
+But when the same fuel use is expressed in miles per gallon, 
+we observe that Driver B can cover 2.6 miles per gallon more than Driver A
+when driving Car 1, but that the difference is 3.6 miles per gallon for Car 2.
+That is, the effects of Driver and Car aren't additive when the data are expressed
+in miles per gallon.
+
+By the same token, a significant non-cross-over interaction in response latencies
+when they are expressed in milliseconds per item may disappear when the latencies
+are expressed in items per second or when the latencies are log- or otherwise transformed.
+\parend
 
 \bibliographystyle{../../../unified}
 \bibliography{../../../bibliography}
