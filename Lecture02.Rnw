@@ -5,6 +5,8 @@
 \setstretch{1.25}
 \usepackage{parskip}
 
+\usepackage{fancyhdr}
+
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 
@@ -38,6 +40,8 @@
 \usepackage[export]{adjustbox}
 \usepackage{booktabs}
 \usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+\renewcommand{\thefigure}{2.\arabic{figure}}
+\renewcommand{\thetable}{2.\arabic{table}}
 
 % Define a new counter for theorems, lemmas, remarks, etc.
 \newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
@@ -127,6 +131,14 @@ op <- par()
 
 \begin{document}
 
+\pagestyle{fancy}
+\fancyhead{} % clear
+\fancyfoot{}
+\fancyhead[L]{The general linear model: Lecture 2}
+\fancyfoot[C]{\thepage}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+
 \maketitle
 
 Having gained some understanding of how parameters and the uncertainty
@@ -137,16 +149,17 @@ What \citet{DeKeyser2010} wanted to find out wasn't so much the mean
 It's always a good idea to {\bf draw a graph} first. For the type of
 question we're concerned with, a {\bf scatterplot} is a reasonable choice.
 
-\mypar[Plot, plot, plot]{Tip}
+\mypar[Plot, plot, plot!]{Tip}
 Take out time to learn to draw plots,
 both to learn more about your data and to communicate your findings
 in talks and papers.
 This script will feature some basic examples, 
 but for a better introduction,
 I recommend Kieran Healy's 
-{\it Data visualization: A practical introduction}, which is 
-available for free at \url{https://socviz.co/}.
-You'll find some further resources on my website (\url{https://janhove.github.io}).
+{\it Data visualization: A practical introduction}, 
+which is available for free at \url{https://socviz.co/}.
+You may also find my twin tutorials \textit{Working with datasets and visualising data in R}
+useful (\url{https://github.com/janhove/DatasetsAndGraphs}).
 \parend
 
 Let's first read in the data again and set the default plotting theme
@@ -205,7 +218,7 @@ lines(seq(0, 10, 0.01), pmin(seq(0, 10, 0.01), 5.5))
 In what follows, we will apply the techniques learnt in the previous lecture
 in order to answer the following question: How does the \textsc{gjt} variable
 relate to the \textsc{aoa} variable?
-That is, once we know the value of someone's \textsc{aoa}
+That is, once we know the value of someone's \textsc{aoa},
 what should be our best guess for that person's \textsc{gjt} score?
 
 \section{The simple linear regression equation}
@@ -228,8 +241,9 @@ the slope tells us by how much $f(x)$ changes when $x$ is increased by one unit;
 see Figure \ref{fig:straightline}. From this we obtain the following 
 {\bf simple linear regression} equation:
 \begin{equation}
-  y_i = \beta_0 + \beta_1x_i + \varepsilon_i.\label{eq:simpleregression}
+  y_i = \beta_0 + \beta_1x_i + \varepsilon_i,\label{eq:simpleregression}
 \end{equation}
+for $i = 1, \dots, n$.
 In our running example, $y_i$ still refers to the $i$-th outcome, i.e., the $i$-th 
 \textsc{gjt} score, and $\varepsilon_i$ still refers to the $i$-th error
 What's new is the predictor, $x$ (with values $x_1, x_2, \dots, x_n$); in our example,
@@ -254,7 +268,7 @@ text(x = 2.15, y = -3.2+0.7*1.5, '}', cex = 2.5)
 text(x = 2.5, y = -3.2+0.7*1.5, expression(beta[1]), cex = 2)
 @
 
-\mypar[The Greek letter fallacy]{Warning}
+\mypar[The Greek letter fallacy]{Remark}
 Both the model from Lecture 1 and the one in Equation
 \ref{eq:simpleregression} contain the term $\beta_0$. But these two
 $\beta_0$s refer to different things (mean vs.\ intercept). The meaning
@@ -352,7 +366,7 @@ I set the \texttt{se} parameter in the \texttt{geom\_smooth()} layer to
 \texttt{FALSE}. Setting it to \texttt{TRUE} would plot a pointwise 95\% confidence band --
 which is a concept we haven't yet discussed.
 
-\mypar[Other optimality criteria]{Remark}
+\mypar[Other optimisation criteria]{Remark}
   Apart from the least squares method, other methods exist for estimating
   the parameters in the general linear model. In Lecture 1, the method
   of least absolute deviations was already mentioned, which leads to
@@ -496,8 +510,8 @@ the residuals for participants with \textsc{aoa} values over 40 from
 participants with \textsc{aoa} values over 40, and similarly for participants
 with lower \textsc{aoa} values. This would correspond to the assumption
 that the errors for participants with high vs.\ low \textsc{aoa} values
-are sampled from separate distributions. The code to run this bootstrap variation
-would only be slightly more complicated.
+could have been sampled from separate distributions. 
+The code to run this bootstrap variation would only be slightly more complicated.
 
 \subsection{The parametric bootstrap}
 Alternatively, we could assume that the errors are drawn from a
@@ -634,14 +648,15 @@ ggplot(data = confidence_band_tbl,
 \subsection{t-distributions}
 As long as we're assuming that the errors are i.i.d.\ draws from
 a normal distribution, we might as well estimate the standard errors
-and compute the confidence intervals for the parameter estimates directly.
+and compute the confidence intervals for the parameter estimates directly using
+$t$-distributions.
 <<>>=
 summary(aoa.lm)
 confint(aoa.lm)
 @
 
 We can also directly obtain a confidence interval for the location
-of the regression line some prespecified predictor values using
+of the regression line at some prespecified predictor values using
 the \texttt{predict()} function. The following command generates
 a 95\% confidence interval for the location of the regression line
 at each of the 67 values in \texttt{new\_aoa}.
@@ -680,10 +695,15 @@ ggplot(data = d,
   geom_smooth(method = "lm")
 @
 
+\mypar{Exercise} Use the semi-parametric bootstrap to draw a 95\% confidence
+band for the \textsc{aoa}--\textsc{gjt} regression model.
+\parend
+
 \section{Interpreting regression lines}
 Equation \vref{eq:simple_regression_normal} is useful for getting a conceptual
-grasp of the regression line. According to this equation, we assume that
-the errors are drawn i.i.d.\ from a normal distribution with mean 0
+grasp on the regression line. 
+According to this equation, 
+we assume that the errors are drawn i.i.d.\ from a normal distribution with mean 0
 and variance $\sigma_{\varepsilon}^2$.
 For a fixed $x$ value, the expected distribution of the $y$ values, then,
 is a normal distribution centred on $\beta_0 + \beta_1x$ and with variance
@@ -897,29 +917,6 @@ So not (!):
 predict(aoa.lm, newdata = tibble(c.AOA = 35))
 @
 
-\mypar{Exercise}
-The dataset \texttt{vanhove2014\_cognates.csv} contains a summary of some data I collected for my PhD thesis \citep{Vanhove2014}. 163 speakers of German were asked to translate 45 written and 45 spoken Swedish words into German. The columns \texttt{CorrectSpoken} and \texttt{CorrectWritten} contain the number of correct translations per participants in both modalities. The dataset \texttt{vanhove2014\_background.csv} contains some background information about the participants, including their performance on a handful cognitive tests.
-
-Let's first combine these datasets. (In addition to learning how to visualise data, learning to summarise, transform, and combine datasets is incredibly useful, but unfortunately out of the scope of this lecture series. See \url{https://r4ds.had.co.nz/} and \url{https://github.com/janhove/DatasetsAndGraphs} if you're interested in learning more about these topics.)
-<<>>=
-cognates <- read_csv(here("data", "vanhove2014_cognates.csv"))
-background <- read_csv(here("data", "vanhove2014_background.csv"))
-all_data <- cognates |> 
-  left_join(background, by = "Subject")
-@
-Now try to answer the following questions.
-\begin{enumerate}
-  \item The column \texttt{DS.Span} contains the participants' score on a working
-  memory task. How is their performance on this task associated with \texttt{CorrectSpoken}?
-  
-  \item How is their performance on an English proficiency test (\texttt{English.Overall})
-  associated with \texttt{CorrectWritten}?
-  
-  \item How does their performance on the Swedish translation tasks vary with \texttt{Age}
-  in both modalities? \parend
-\end{enumerate}
-
-
 \section{Assumptions and relevance, Episode 2}
 The assumptions we've made throughout this section (linear relationship,
 equality of error distributions, normality) almost never hold literally. Instead of worrying
@@ -929,7 +926,7 @@ model seeks to characterise the linear relationship between the predictor
 and the outcome. If the relationship between predictor and outcome isn't approximately
 linear, the model's output will still be literally correct in many situations --
 but it may not help you find out what you want to know. In such cases, purely
-graphical data analyses or models capable of capturing nonlinearities (e.g.,
+graphical data analyses, data transformations or models capable of capturing nonlinearities (e.g.,
 generalised additive models) may be
 of interest.
 
@@ -958,6 +955,28 @@ and \texttt{GJT} mean -- literally?
 \item Which of the two models (\texttt{aoa.lm} or \texttt{gjt.lm}) is the most relevant in the context of DeKeyser et al.'s study? Why?
 \end{enumerate}
 \parend
+
+\mypar{Exercise}
+The dataset \texttt{vanhove2014\_cognates.csv} contains a summary of some data I collected for my PhD thesis \citep{Vanhove2014}. 163 speakers of German were asked to translate 45 written and 45 spoken Swedish words into German. The columns \texttt{CorrectSpoken} and \texttt{CorrectWritten} contain the number of correct translations per participants in both modalities. The dataset \texttt{vanhove2014\_background.csv} contains some background information about the participants, including their performance on a handful cognitive tests.
+
+Let's first combine these datasets. (In addition to learning how to visualise data, learning to summarise, transform, and combine datasets is incredibly useful, but unfortunately out of the scope of this lecture series. See \citet[][freely available from \url{https://r4ds.had.co.nz/}]{Wickham2023} as well as \url{https://github.com/janhove/DatasetsAndGraphs} if you're interested in learning more about these topics.)
+<<>>=
+cognates <- read_csv(here("data", "vanhove2014_cognates.csv"))
+background <- read_csv(here("data", "vanhove2014_background.csv"))
+all_data <- cognates |> 
+  left_join(background, by = "Subject")
+@
+Now try to answer the following questions.
+\begin{enumerate}
+  \item The column \texttt{DS.Span} contains the participants' score on a working
+  memory task. How is their performance on this task associated with \texttt{CorrectSpoken}?
+  
+  \item How is their performance on an English proficiency test (\texttt{English.Overall})
+  associated with \texttt{CorrectWritten}?
+  
+  \item How does their performance on the Swedish translation tasks vary with \texttt{Age}
+  in both modalities? \parend
+\end{enumerate}
 
 \section*{Summary}
 \begin{itemize}
