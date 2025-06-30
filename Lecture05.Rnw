@@ -5,6 +5,8 @@
 \setstretch{1.25}
 \usepackage{parskip}
 
+\usepackage{fancyhdr}
+
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 
@@ -38,6 +40,8 @@
 \usepackage[export]{adjustbox}
 \usepackage{booktabs}
 \usepackage[margin=10pt, font=small, labelfont=bf, width=.8\textwidth]{caption}
+\renewcommand{\thefigure}{5.\arabic{figure}}
+\renewcommand{\thetable}{5.\arabic{table}}
 
 % Define a new counter for theorems, lemmas, remarks, etc.
 \newcounter{mycounter}%[chapter] % Reset counter at the start of each chapter
@@ -127,6 +131,14 @@ op <- par()
 
 \begin{document}
 
+\pagestyle{fancy}
+\fancyhead{} % clear
+\fancyfoot{}
+\fancyhead[L]{The general linear model: Lecture 5}
+\fancyfoot[C]{\thepage}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+
 \maketitle
 
 As we've seen in the previous lectures, the general linear model
@@ -150,7 +162,6 @@ of including several predictors in a handful of key scenarios.
 The following box anticipates the main insight.
 
 \begin{framed}
-\noindent \textbf{Causal relationships.}
 The parameter estimates that the general linear model produces
 first and foremost describe associations in the data.
 Often, however, researchers want to lend a causal interpretation to
@@ -210,8 +221,9 @@ To keep this simple, we'll assume that the $z$ variable was drawn from
 a normal distribution with mean 0 and standard deviation 1; but this isn't
 too important:
 \begin{align}
-z_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, 1^2). \nonumber
+z_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, 1^2), \nonumber
 \end{align}
+$i = 1, \dots, n$.
 
 Next, we assume that a one-unit increase in the $z$ variable causes
 an increase of $1.2$ units in the $x$ variable. There is, however,
@@ -221,8 +233,9 @@ which we assume is also drawn from a normal distribution with mean 0 and
 standard deviation 1:
 \begin{align}
 x_i &= 0 + 1.2\cdot z_i + \tau_i, \label{eq:dag1_x} \\
-\tau_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, 1^2). \nonumber
+\tau_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, 1^2), \nonumber
 \end{align}
+$i = 1, \dots, n$.
 The numbers $1.2$ in the first line and $1$ in the second line were
 chosen arbitrarily -- you can play around with these numbers at home.
 The $0$ in the first line merely means that the mean of the $x$ variable
@@ -235,8 +248,9 @@ has a negative causal effect on $y$, but we don't want to estimate this effect.
 Again, the numbers $5.2$, $0.6$ and $-1.3$ were chosen arbitrarily.
 \begin{align}
 y_i &= 5.2 + 0.6\cdot x_i - 1.3 \cdot z_i + \varepsilon_i, \label{eq:dag1} \\
-\varepsilon_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, 1^2). \nonumber
+\varepsilon_i &\stackrel{\textrm{i.i.d.}}{\sim} \textrm{Normal}(0, 1^2), \nonumber
 \end{align}
+$i = 1, \dots, n$.
 
 Let's now simulate a dataset with 100 observations of these three variables.
 If we don't specify any further parameters, the \texttt{rnorm(n)} call
@@ -370,7 +384,7 @@ generate_dag1 <- function(
   }
 
   tibble(`Model 1` = est_lm1,
-         `Model 2` = est_lm2))
+         `Model 2` = est_lm2)
 }
 @
 
@@ -406,8 +420,8 @@ apply(est_dag1, 2, mean)
   we cannot interpret its parameter estimates causally.
 
 It seems clear what conclusion we ought to draw from the considerations
-above: If confounding variables are at play and you want to make
-causal claims, you need to include these confounders in the analysis.
+above: If confounding variables are at play and we want to make
+causal claims, we need to include these confounders in the analysis.
 In practice, however, things aren't so simple.
 \begin{itemize}
   \item We may not know all confounders or we may not have been able to
@@ -440,10 +454,11 @@ u_i &\sim \textrm{Normal}(0, 1^2), \\
 x_i &= 0 + 1.2\cdot z_i + 0.9\cdot u_i + \tau_i, \\
 y_i &= 5.2 + 0.6\cdot x_i - 1.3 \cdot z_i + 2.5\cdot u_i + \varepsilon_i,\\
 \tau_i &\sim \textrm{Normal}(0, 1^2),  \\
-\varepsilon_i &\sim \textrm{Normal}(0, 1^2).
+\varepsilon_i &\sim \textrm{Normal}(0, 1^2),
 \end{align*}
+$i = 1, \dots, n$, with all $z_i, u_i, \epsilon_i, \tau_i$ independent. 
 We can generate a dataset governed by these equations that contains 50 observations as follows.
-Note while we simulate the $u$ variable, we don't add it to the dataset since it
+Note that while we simulate the $u$ variable, we don't add it to the dataset since it
 wasn't measured.
 <<>>=
 n <- 50
@@ -509,8 +524,9 @@ x_i &= 0 + 1.2\cdot z_i + \tau_i, \nonumber \\
 y_i &= 5.2 + 0.6\cdot x_i - 1.3 \cdot z_i + \varepsilon_i, \nonumber \\
 \psi_i &\sim \textrm{Normal}(0, 0.3^2), \label{eq:dag1_aufgabe2}\\
 \tau_i &\sim \textrm{Normal}(0, 1^2),  \nonumber \\
-\varepsilon_i &\sim \textrm{Normal}(0, 1^2). \nonumber
+\varepsilon_i &\sim \textrm{Normal}(0, 1^2), \nonumber
 \end{align}
+$i = 1, \dots, n$, with $z_i, \psi_i, \tau_i, \epsilon_i$ independent.
 
 <<message = FALSE, fig.width=1, fig.height=1, out.width=".2\\textwidth", echo = FALSE, fig.cap="The $z$ variable confounds the causal relationship between $x$ and $y$, but it wasn't measured directly. Instead, we need to make do with a proxy variable $z_m$ that captures $z$ imperfectly.\\label{fig:dag1_aufgabe2}">>=
 dag1 <- dagitty("dag {
@@ -562,6 +578,12 @@ summary(exercise2.lm)$coefficients
   instead of $0.3$ for $\psi$ in Equation \ref{eq:dag1_aufgabe2}. \parend
 \end{enumerate}
 
+\mypar{Tip}
+  If you read about a study that claims that the participants'
+  `intelligence' or `socio-economic status' has been controlled for,
+  mentally change this to `an imperfect indicator of the participants' intelligence/socio-economic status'.
+\parend
+
 \section{Control variables in randomised experiments}\label{sec:controlvariables}
 In Section \ref{sec:confoundingvariables}, we discussed a scenario in which $z$
 causally affects both $x$ and $y$. This scenario is typical for observational (or correlational)
@@ -570,8 +592,8 @@ to randomised experiments, that is, experiments in which the values of $x$
 are manipulated by the researchers based on random assignment.
 To reflect this, the $x$ variable is represented as $x_r$ in Figure \ref{fig:dag2}  
 ($r$ for \textit{randomised}).
-A typical example for the more abstract scenario we consider here are experiments
-in which participants are randomly assigned to the experiments' conditions.
+A typical example for the more abstract scenario we consider here is an experiment
+in which participants are randomly assigned to the conditions.
 In this case, $x$ would be a categorical variable.
 But without any loss of generality, we can restrict our discussion to a continuous $x$.
 This makes the simulations a bit easier; it doesn't affect the conclusions we will draw.
@@ -598,15 +620,15 @@ by the following equations:
 x_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
 z_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
 y_i &= 5.2 + 0.3\cdot x_i + 0.9 \cdot z_i + \varepsilon_i, \label{eq:dag2} \\
-\varepsilon_i &\sim \textrm{Normal}(0, 1^2). \nonumber
+\varepsilon_i &\sim \textrm{Normal}(0, 1^2), \nonumber
 \end{align}
+$i = 1, \dots, n$ with the $x_i, z_i, \varepsilon_i$ independent.
+Let's simulate a dataset conforming to these equations:
 
 <<echo = FALSE>>=
 set.seed(1234)
 @
 
-
-Let's simulate a dataset conforming to these equations:
 <<>>=
 n <- 100
 x <- rnorm(n)
@@ -635,8 +657,8 @@ unbiased estimates of the causal influence of $x$ on $y$.
 By this standard, neither model is bad. That said, if we have the $z$ variable
 at our disposal, the second model is to be preferred. The reason for this
 will become clearer once we've simulated a couple of thousand datasets.
-To this end, we could write a new function, \texttt{generate\_dag2()},
-but we can also just use  \texttt{generate\_dag1()} and set the 
+To this end, we could write a new function, \texttt{generate\_dag2()}.
+But we can also reuse  \texttt{generate\_dag1()} and set the 
 parameter value of \texttt{z\_x} to $0$:
 
 <<cache = TRUE>>=
@@ -663,8 +685,9 @@ est_dag2 |>
   ylab("Number")
 @
 
-We can check this numerically. The means of the estimates in both models
-corresponds to the true value (making allowance for simulation error). But compared to the estimates by the first model,
+We can check this numerically. 
+The means of the estimates in both models correspond to the true value 
+(making allowance for simulation error). But compared to the estimates by the first model,
 the standard deviation of the estimates by the second model is about 25\% lower.
 <<>>=
 apply(est_dag2, 2, mean)
@@ -677,10 +700,12 @@ we have reduced the error variance and have hence increased the precision of our
 So even if you don't actually care about $z$, it can pay dividends to still collect
 it and include it in your analysis.
 
-\mypar[Choosing control variables]{Tip} When designing an experiment,
+\mypar[Choosing control variables]{Tip} 
+When designing an experiment,
 one or two additional variables that you
-strongly suspect to be correlated with the outcome may be useful, particularly
-if they're not too strongly related to each other. 
+suspect to be strongly correlated to the outcome may be useful, particularly
+if they're not too strongly related to each other.
+(Else they would both essentially be doing the same job.)
 Such variables typically are \emph{so} obviously related to the outcome that they
 are completely uninteresting in and of themselves (e.g., pretest performance).
 But don't collect umpteen
@@ -688,12 +713,13 @@ additional variables on the off-chance that they might be related to the outcome
 and help you reduce the error variance. Moreover, the decision whether or not to
 include some additional variable in your analysis should be taken \emph{before}
 you analyse your data -- don't run multiple models and then report the one
-that works `best'. You completely invalidate your inferential results this way.
+that works `best'.
+You completely invalidate your inferential results this way.
 \parend
 
-\mypar[A pretest/posttest experiment (Part I)]{Exercise}
+\mypar[A pretest/posttest experiment (Part \textsc{i})]{Exercise}
 The data for this exercise stem from a study by \citet{Hicks2021}.
-She investigate how well 260 children could learn German--English cognates.
+She investigated how well 260 children could learn German--English cognates.
 There were three waves of data collection: T1, T2, and T3.
 After the first wave, an intervention was undertaken with 120 of the children,
 the goal of which was to impart to them a greater awareness of cognate correspondences.
@@ -716,7 +742,8 @@ hicks <- read_csv(here("data", "hicks2021.csv")) |>
 One option to visualise these data is to draw a scatterplot with
 the pretest scores along the $x$-axis and the posttest scores along the $y$-axis
 and with different colours depending on the experimental condition.
-Further, regression lines for both subsets can be added:
+Further, regression lines for both conditions can be added.
+These are derived from separate simple regression models for the two conditions:
 <<eval = FALSE>>=
 ggplot(hicks,
        aes(x = T1cog, y = T3cog,
@@ -728,12 +755,12 @@ ggplot(hicks,
 @
 Based on this plot, how would you answer the research question? What aspect of the visualisation did you base your answer on?
 
-Now fit a linear model of the form \rcode{outcome ~ condition + control}.
+Now fit a linear model of the form \rcode{outcome {$\mathtt{\sim}$} condition + control}.
 Don't forget to create a dummy variable for the condition variable.
 Interpret the model in terms of the research question.
 \parend
 
-\mypar[A pretest/posttest experiment (Part II)]{Exercise}
+\mypar[A pretest/posttest experiment (Part \textsc{ii})]{Exercise}
   The children in the study by \citet{Hicks2021} were pupils in classes.
   They were assigned to the experiment's conditions in whole classes rather than on an individual basis.
   This induces a dependency between different data points,
@@ -752,19 +779,21 @@ hicks_byclass <- hicks |>
             mean_T3 = mean(T3cog))
 byclass.lm <- lm(mean_T3 ~ n.Group + mean_T1, hicks_byclass)
 @
-  Interpret the output in terms of the research question.
+  Interpret the output of this model in terms of the research question.
   How would you report the finding in an article?
   Focus only on what's important.
 \parend
 
-\mypar[A pretest/posttest experiment (Part III)]{Exercise}
-  In Part II, we still assumed that random assignment was used -- but on the level of the classes rather than on the level of the individual pupils.
+\mypar[A pretest/posttest experiment (Part \textsc{iii})]{Exercise}
+  In Part \textsc{ii}, we still assumed that random assignment was used -- but on the level of the classes rather than on the level of the individual pupils.
   Look up in Hicks' article how the children were actually assigned to the different conditions.
   Briefly discuss plausible consequences.
 \parend
 
 \section{Posttreatment variables}
 We now briefly turn our attention to scenarios where $z$ is a posttreatment variable.
+That is, when we draw a \textsc{dag}, we can arrive at $z$ starting in $x$ by following
+arrows.
 In the context of a randomised experiment with $x$ as the predictor of interest,
 this means that $z$ was collected \emph{after} the randomisation. As a consequence,
 $z$ may be influenced by $x$.
@@ -852,8 +881,9 @@ x_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
 y_i &= 0.4x_i + \varepsilon_i, \nonumber \\
 z_i &= 0.5x_i + 0.8y_i + \tau_i, \nonumber \\
 \varepsilon_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
-\tau_i &\sim \textrm{Normal}(0, 1^2).\nonumber
+\tau_i &\sim \textrm{Normal}(0, 1^2),\nonumber
 \end{align}
+$i = 1, \dots, n$ with the $x_i, \varepsilon_i, \tau_i$ independent.
 
 The function \texttt{generate\_posttreatment()} is a slight
 adaptation of \texttt{generate\_dag1()}.
@@ -897,7 +927,7 @@ As always, whether the model is justified depends on what you want to find
 out and on your assumptions.
 
 It also bears pointing out that colliders are sometimes inadvertently controlled for
-during the design stage. See \citet{Rohrer2018} for more on this important topic.
+during the design stage. See \citet{Rohrer2018}.
 
 \paragraph{Miscellaneous.}
 In the \textsc{dag} in Figure \ref{fig:dag4}, $z$ is also a posttreatment
@@ -910,8 +940,9 @@ x_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
 y_i &= 0.4x_i + \varepsilon_i, \nonumber \\
 z_i &= y_i + \tau_i, \nonumber \\
 \varepsilon_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
-\tau_i &\sim \textrm{Normal}(0, 1^2).\nonumber
+\tau_i &\sim \textrm{Normal}(0, 1^2),\nonumber
 \end{align}
+$i = 1, \dots, n$ with the $x_i, \varepsilon_i, \tau_i$ independent.
 
 <<message = FALSE, fig.width=2, fig.height=1, out.width=".4\\textwidth", echo = FALSE, fig.cap="\\label{fig:dag4}">>=
 dag4 <- dagitty("dag {
@@ -946,9 +977,9 @@ x_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
 y_i &= 0.4x_i + \varepsilon_i, \nonumber \\
 z_i &= x_i + \tau_i, \nonumber \\
 \varepsilon_i &\sim \textrm{Normal}(0, 1^2), \nonumber \\
-\tau_i &\sim \textrm{Normal}(0, 1^2).\nonumber
+\tau_i &\sim \textrm{Normal}(0, 1^2),\nonumber
 \end{align}
-
+$i = 1, \dots, n$ with the $x_i, \varepsilon_i, \tau_i$ independent.
 
 <<message = FALSE, fig.width=2, fig.height=1, out.width=".4\\textwidth", echo = FALSE, fig.cap="\\label{fig:dag5}">>=
 dag5 <- dagitty("dag {
@@ -981,63 +1012,6 @@ is usually a bad idea. In randomised experiments, there luckily exists a
 simple trick for preventing that the predictors you include in the model
 are posttreatment variables: Just collect the predictors before carrying out the
 intervention!
-
-\mypar{Exercise}
-\citet{Vanhove2019} had 1,000 short French texts written by children
-  rated for their lexical diversity on a 9-point scale
-  by between 2 and 18 raters each. 
-  For the purposes of this exercise, we're interested in modelling
-  these human ratings in terms of the length of the text (the logarithmically
-  transformed number of tokens (using base 2), \texttt{log2\_ntokens}) and the type--token
-  ratio (\texttt{TTR}), an easily computed metric of a text's lexical diversity.
-<<>>=
-d <- read_csv(here("data", "text_ratings.csv"))
-lexdiv.lm <- lm(mean_rating ~ log2_ntokens + TTR, data = d)
-summary(lexdiv.lm)$coefficients
-@
-  \begin{enumerate}
-    \item (Paper and pencil.) For each claim, decide whether it is correct.
-    Justify your answers.
-    \begin{itemize}
-          
-      \item The model output shows that human raters are sensitive to differences
-      in the type--token ratio when ratings texts for their lexical diversity.
-    
-      \item The model output shows that there is a positive linear relationship
-      between the TTR values and the mean ratings: Texts with higher TTR values
-      tend to receive higher ratings than texts with lower TTR values.
-      
-    \end{itemize}
-    
-    \item (With R.) Draw a scatterplot matrix of these variables and revise
-    your answer to the previous question if needed.
-    
-    \item (Paper and pencil.) Explain what each of the three
-    estimated model parameters literally means.
-    
-    \item (Paper and pencil.) According to this model, what mean rating
-    would you expect for a text consisting of 64 tokens with a TTR of 0.7? \parend
-  \end{enumerate}
-
-\section*{Summary and recommendations}
-\begin{itemize}
-  \item A multiple regression model is not just multiple simple regressions
-  run at once. The meaning of the parameter estimates changes if you add
-  or remove predictors to or from the model. Also see \citet{Morrissey2018} 
-  and \citet{Vanhove2021}.
-  
-  \item The decision which predictors to include in a model depends on what it
-  is exactly you want to estimate and how you think different variables may
-  be causally related. In my experience, people's difficulties with regression
-  models aren't so much statistical in nature as due to their not having worked
-  out what they actually want to find out.
-  
-  \item Know what the literal meaning of the estimated model parameters is
-  before you interpret them in terms of the subject matter.
-  
-  \item As shown in the exercises, plots of the actual data may help prevent
-  both you and your readership from interpreting the model output incorrectly.
-\end{itemize}
 
 \mypar{Exercise}
 Consider Figure \ref{fig:complexdag1}. Assume that you want to
@@ -1094,9 +1068,171 @@ Let's say that instead of merely observing and measuring all the
           Justify your answer. \parend
   \end{enumerate}
 
+\mypar[Interpreting model estimates (1)]{Exercise}
+\citet{Vanhove2019} had 1,000 short French texts written by children
+  rated for their lexical diversity on a 9-point scale
+  by between 2 and 18 raters each. 
+  For the purposes of this exercise, we're interested in modelling
+  these human ratings in terms of the length of the text (the logarithmically
+  transformed number of tokens (using base 2), \texttt{log2\_ntokens}) and the type--token
+  ratio (\texttt{TTR}), an easily computed metric of a text's lexical diversity.
+<<>>=
+d <- read_csv(here("data", "text_ratings.csv"))
+lexdiv.lm <- lm(mean_rating ~ log2_ntokens + TTR, data = d)
+summary(lexdiv.lm)$coefficients
+@
+  \begin{enumerate}
+    \item (Paper and pencil.) For each claim, decide whether it is correct.
+    Justify your answers.
+    \begin{itemize}
+          
+      \item The model output shows that human raters are sensitive to differences
+      in the type--token ratio when ratings texts for their lexical diversity.
+    
+      \item The model output shows that there is a positive linear relationship
+      between the \textsc{ttr} values and the mean ratings: Texts with higher \textsc{ttr} values
+      tend to receive higher ratings than texts with lower \textsc{ttr} values.
+      
+    \end{itemize}
+    
+    \item (With R.) Draw a scatterplot matrix of these variables and revise
+    your answer to the previous question if needed.
+    
+    \item (Paper and pencil.) Explain what each of the three
+    estimated model parameters literally means.
+    
+    \item (Paper and pencil.) According to this model, what mean rating
+    would you expect for a text consisting of 64 tokens with a \textsc{ttr} of 0.7? \parend
+  \end{enumerate}
+  
+
+<<echo = FALSE, message = FALSE>>=
+cognates <- read_csv(here("data", "vanhove2014_cognates.csv"))
+background <- read_csv(here("data", "vanhove2014_background.csv"))
+d <- cognates %>%   
+  left_join(background, by = "Subject") %>%
+   filter(English.Overall != -9999)
+ 
+d$n.Sex <- ifelse(d$Sex == "male", 0.5, -0.5)
+options(digits = 2)
+@
+
+\mypar[Interpreting model estimates (2)]{Exercise}
+We're given a data set \texttt{d} with the outcome \texttt{CorrectSpoken}
+and four predictors:
+\begin{itemize}
+  \item \texttt{n.Sex}: $0.5$ for men, $-0.5$ for women (sum coding).
+  \item \texttt{NrLang}: Number of languages spoken for each participant (varies from 1 to 5).
+  \item \texttt{DS.Span}: Score on the backward digit span, a working memory test (varies from 2 to 8, more is better).
+  \item \texttt{Raven.Right}: Score on a test of fluid intelligence (varies from 0 to 35, more is better).
+\end{itemize}
+
+We fit the following model:
+<<>>=
+mod.lm <- lm(CorrectSpoken ~ NrLang + DS.Span + n.Sex*Raven.Right,
+             data = d)
+summary(mod.lm)$coefficients
+@
+
+\begin{enumerate}
+\item What does the estimate of $-5.02$ for the \texttt{n.Sex} parameter refer to? That is, what does it mean literally.
+
+\item Let's say we wanted to fit a similar model but one that has an intercept
+      with a more useful interpretation. Explain how we could achieve this.
+      Also explain how we can interpret the intercept in this new model.
+
+\item Claim: We can glean from the model that, at least in this data set,
+      participants with a high working memory capacity do not outperform
+      participants with a low working memory capacity in terms of the \texttt{CorrectSpoken} variable. \\
+      Is this claim correct? (Yes or no.) Justify your answer.
+
+\item What gets computed here?
+<<>>=
+8.554 + 1.115*3 - 0.097*4 + 0.286*25
+@
+
+\item How large, according to the model, is the expected average difference 
+in the \texttt{CorrectSpoken} variable between women with a
+\texttt{Raven.Right} score of 20 and women with a \texttt{Raven.Right} score
+of 30, keeping \texttt{NrLang} and \texttt{DS.Span} constant. 
+It suffices to provide the computation without evaluating it. \parend
+\end{enumerate}
+  
+\section{Putting it all together}
+The following exercise isn't specific to any one of the lectures covered up to this
+point. Rather, you can draw on several of the lectures to tackle it
+
+\mypar[Analysing an experiment]{Exercise}
+From the abstract of \citet{Vanhove2016}:
+\begin{quote}
+``This article investigates whether learners are able to quickly discover simple, systematic graphemic correspondence rules between their L1 and an unknown but closely related language in a setting of receptive multilingualism.
+
+(\dots)
+
+Eighty L1 German speakers participated in a translation task with written Dutch words, most of which had a German cognate. In the first part of the translation task, participants were shown 48 Dutch words, among which either 10 cognates containing the digraph ‹oe› (always corresponding to a German word with ‹u›) or 10 cognates with the digraph ‹ij› (corresponding to German ‹ei›). During this part, participants were given feedback in the form of the correct translation. In the second (feedback-free) part of the task, participants were shown another 150 Dutch words, among which 21 cognates with ‹oe› and 21 cognates with ‹ij›.''
+\end{quote}
+What I wanted to know was whether the exposure and feedback
+to ten words containing a specific interlingual orthographic
+correspondence (i.e., ‹oe›--‹u› or ‹ei›--‹ij›) was
+sufficient for the
+participants to pick up on this correspondence and use their
+knowledge in translating new words containing the correspondence.
+
+First, we read in the data and compute, for each participant,
+the proportion of words in the second (feedback-free) part of the task
+which they translated correctly in each category (cognates containing
+‹oe›, cognates containing ‹ij›, other cognates, non-cognates).
+
+<<>>=
+d <- read_csv(here("data", "correspondencerules.csv"))
+d_perParticipant <- d |> 
+  filter(Block != "training") |> 
+  group_by(Subject, LearningCondition, Category, WSTRight) |> 
+  summarise(ProportionCorrect = mean(Correct == "yes"),
+            .groups = "drop")
+@
+
+I've also retained a measure of the participants' L1 (German)
+vocabulary knowledge, namely the \texttt{WSTRight} variable.
+Use \texttt{View(d\_perParticipant)} to inspect the structure
+of the cleaned-up and restructured dataset.
+
+Analyse this dataset to answer the research question.
+
+Hints:
+\begin{itemize}
+\item There are several acceptable ways of analysing these data.
+\item All of them involve plotting the data :)
+\item Note that \texttt{LearningCondition} varies \emph{between}
+      participants whereas \texttt{Category} varies \emph{within} participants.
+\item First try to work out on a piece of paper what it is you want to do.
+      You can always ask someone to help you implement your idea in R.
+\item Ask for help and feedback! :) \parend
+\end{itemize}
+
+\section*{Summary}
+\begin{itemize}
+  \item A multiple regression model is not just multiple simple regressions
+  run at once. The meaning of the parameter estimates changes if you add
+  or remove predictors to or from the model. Also see \citet{Morrissey2018} 
+  and \citet{Vanhove2021}.
+  
+  \item The decision which predictors to include in a model depends on what it
+  is exactly you want to estimate and how you think different variables may
+  be causally related. In my experience, people's difficulties with regression
+  models aren't so much statistical in nature as due to their not having worked
+  out what they actually want to find out.
+  
+  \item Know what the literal meaning of the estimated model parameters is
+  before you interpret them in terms of the subject matter.
+  
+  \item As shown in the exercises, plots of the actual data may help prevent
+  both you and your readership from interpreting the model output incorrectly.
+\end{itemize}
+
 \section*{Further reading}
 On the limits of statistical control in observational
-studies, see \citet{Christenfeld2004}, \citet[][Part VII]{Huitema2011}
+studies, see \citet{Christenfeld2004}, \citet[][Part \textsc{vii}]{Huitema2011}
 and \citet{Westfall2016}.
 On the utility of statistical control in randomised experiments, 
 see \citet{Vanhove2015} and references therein.
