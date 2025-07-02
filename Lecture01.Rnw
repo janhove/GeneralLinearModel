@@ -341,8 +341,8 @@ It's not a coincidence that the medians of the
 if we estimate $\widehat{\beta}_0$ by minimising
 the sum of the absolute residuals, 
 then we obtain the sample medians! For a proof, see \citet{Schwertman1990}.\footnote{\emph{A} median of a list of values $(x_1, x_2, \dots, x_n)$
-is any value $r$ such that there are equally as many $x_i$ values
-that are at least as large as $r$ as there are that are at most as large as $r$.
+is any value $r$ such that at least half of the $x_i$ values
+are at least as large as $r$ and at least half of them are at most as large as $r$.
 When talking about \emph{the} median, we refer to the average of the
 smallest such value $r$ and the largest such value.}
 
