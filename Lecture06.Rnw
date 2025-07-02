@@ -500,7 +500,8 @@ that is also expressed in percentages, consider fitting a linear probability mod
   For generalised linear models, 
   only approximate confidence procedures (based on asymptotic results) are available.
   That said, it is possible to apply (parametric) bootstrap and permutation procedures
-  that may be more reliable for smaller samples in particular.
+  that may be more reliable for smaller samples in particular;
+  see Remarks \ref{rmk:parametricbootstrap} and \ref{rmk:pvals}.
 \parend
 
 \mypar[Linear probability model done better]{Remark}
@@ -527,7 +528,7 @@ summary(lpm.glm)$coefficients
   Compare the output of this model to the output of the model \rcode{tversky.lm}.
 \parend
 
-\mypar[Significance tests for $2 \times 2$-tables]{Remark}
+\mypar[Significance tests for $2 \times 2$ tables]{Remark}
 If a full-fledged model isn't required, 
 it is possible to calculate exact $p$-values for $2 \times 2$ contingency tables.
 See my blogpost \href{https://janhove.github.io/posts/2024-09-10-contingency-p-value/}{\textit{Exact significance tests for $2 \times 2$ tables}} for details.
@@ -615,7 +616,7 @@ Explain what the parameter estimates for \texttt{(Intercept)},
 \texttt{n.language} and \texttt{n.framing} mean.
 \parend
 
-\mypar[Confidence intervals using parametric bootstrapping]{Remark}
+\mypar[Confidence intervals using parametric bootstrapping]{Remark}\label{rmk:parametricbootstrap}
 The confidence intervals for the model parameters rely on large-sample approximations.
 One option to verify them is to apply a parametric bootstrap.
 To this end, we generate new outcome data from the fitted model
@@ -640,7 +641,7 @@ The upper end of this confidence interval is a fair bit higher than the
 approximate one you can compute using \rcode{confint()}.
 \parend
 
-\mypar[$p$-values in the generalised linear model]{Remark}
+\mypar[$p$-values in the generalised linear model]{Remark}\label{rmk:pvals}
 We haven't discussed $p$-values much in this lecture series.
 But I'd like to really drive home the point that statistical inference
 in the generalised linear model relies on large-sample approximations
