@@ -144,8 +144,8 @@ op <- par()
 The general linear model can be used to model differences between two or more
 groups with respect to some continuous outcome variable. We'll first take a
 look at how differences between two groups can be modelled. Then we'll 
-deal with differences between three or more groups. Finally, we'll discuss
-how data from factorial designs can be analysed.
+deal with differences between three or more groups.
+In the next lecture, we'll discuss how data from factorial designs can be analysed.
 
 \section{Differences between two groups}
 Our first example in this lecture is from the field of social psychology.\footnote{Studies with group comparisons in language-related fields either seem to be more complex than \emph{just} a group comparison or don't share their data. But if you know of a suitable dataset from the language sciences, please let me know!}
@@ -254,7 +254,7 @@ coef(money.lm)
 @
 \label{model:money.lm}
 Uncertainty estimates can be obtained just like in Lecture 2. Here, we'll
-skip straight to the estimated standard errors and confidence intervals
+skip straight to the standard errors and confidence intervals
 based on the assumption that the $\varepsilon_i$ were sampled i.i.d.\
 from a normal distribution. 
 But there's an exercise towards the end of this lecture where you verify the results obtained using a bootstrap that doesn't assume identical, normal error distributions.
@@ -289,6 +289,10 @@ is $3.53 \pm 0.14$, whereas the estimated mean difference between
 the treatment and the control groups is $-0.006 \pm 0.20$. It is usually
 the latter estimate that is relevant.
 
+\mypar{Exercise}
+How would the parameter estimates change if we coded the treatment group as 0 and the control group as 1? Try to answer this question without using the computer.
+\parend
+
 The second commonly used method for coding dummy variables is
 {\bf sum coding}. In sum coding, the value of the dummy variable is $+0.5$
 for the participants in one condition and $-0.5$ for the participants in the 
@@ -319,7 +323,7 @@ and
 \]
 The difference between these estimates is exactly the parameter estimate for the slope:
 \[
-\widehat{y}_{\textrm{treatment}} - \widehat{y}_{\textrm{control}} = (3.53 - 0.006\cdot 0.5) - (3.53 + 0.006\cdot 0.5) = 0.006.
+\widehat{y}_{\textrm{treatment}} - \widehat{y}_{\textrm{control}} = (3.53 - 0.006\cdot 0.5) - (3.53 + 0.006\cdot 0.5) = -0.006.
 \]
 As for the interpretation of the intercept estimate, 
 consider the following:
@@ -342,12 +346,6 @@ to the average of the conditional means for both groups, that is, to the {\bf gr
 \parend
 
 \mypar{Exercise}
-Refer back to the \texttt{money.lm} model on page \pageref{model:money.lm}. 
-How would the parameter estimates change if we coded the treatment group as 0 and the control group as 1? Try to answer this question without using the computer.
-\parend
-
-\mypar{Exercise}
-Refer back to the \texttt{money.lm2} model on page \pageref{model:money.lm2}. 
 How would the parameter estimates change if we coded the treatment group as 1 and the control group as $-1$? 
 How could you interpret the slope estimate?
 Try to answer these questions without using the computer.
@@ -423,7 +421,7 @@ with Dutch cognates, and I tallied how often their German gender assignments wer
 
 Let's read in the data and draw some boxplots (Figure \ref{fig:vanhove2018}). Note the use of the \texttt{limits} parameter in
 the \texttt{scale\_x\_discrete()} call to change the order of the boxplots to something more meaningful than the default alphabetical one.
-<<out.width = ".7\\textwidth", fig.width = 6*1.1, fig.height = 2.3*1.1, fig.cap = "\\label{fig:vanhove2018}">>=
+<<out.width = ".7\\textwidth", fig.width = 6*1.1, fig.height = 2.3*1.1, fig.cap = "Proportion of L1-congruent gender assignments in L2 German by experimental condition in Vanhove (2019).\\label{fig:vanhove2018}">>=
 d <- read_csv(here("data", "Vanhove2018.csv"))
 ggplot(d,
        aes(x = Condition,
@@ -487,9 +485,9 @@ this by reconstructing the condition means in the descriptive statistics using
 the model output.
 
 We can estimate the uncertainty about these parameter estimates using
-bootstrap methods (see the exercise below). If we're comfortabe assuming that the
+bootstrap methods (see the exercise below). If we're comfortable assuming that the
 residuals were all drawn from the same normal distribution, we can use \texttt{summary()}
-as before to obtain the estimated standard errors:
+as before to obtain standard errors:
 <<>>=
 summary(mod.lm)$coefficients
 @
