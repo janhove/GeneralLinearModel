@@ -245,7 +245,7 @@ see Figure \ref{fig:straightline}. From this we obtain the following
 \end{equation}
 for $i = 1, \dots, n$.
 In our running example, $y_i$ still refers to the $i$-th outcome, i.e., the $i$-th 
-\textsc{gjt} score, and $\varepsilon_i$ still refers to the $i$-th error
+\textsc{gjt} score, and $\varepsilon_i$ still refers to the $i$-th error.
 What's new is the predictor, $x$ (with values $x_1, x_2, \dots, x_n$); in our example,
 these are the \textsc{aoa} values. The parameters $\beta_0$ and $\beta_1$
 represent the intercept and the slope of the straight line that models the relationship
@@ -467,7 +467,7 @@ hist(bs_b[, 1])
 hist(bs_b[, 2])
 @
 
-The standard deviations of these distributions serve as estimates of the
+The standard deviations of these distributions serve as
 standard errors for $\widehat{\beta}_0, \widehat{\beta}_1$:
 <<>>=
 # apply(x, 2, function) applies function to x by columns
@@ -627,7 +627,7 @@ hi_95 <- apply(bs_y_hat, 2, quantile, probs = 0.975)
 @
 Finally, we combine the predictor values and these percentile values into a tibble and plot them.\footnote{Tibbles are the counterpart of standard data frames when using the tidyverse package. But you can use \texttt{data.frame()} instead of \texttt{tibble()} if you prefer.}
 See Figure \ref{fig:bs_confidenceband}.
-<<out.width = "0.6\\textwidth", fig.width = 5, fig.height = 3, fig.cap = "Scatterplot with a bootstrap-based 95\\% confidence band for the regression line.\\label{fig:bs_confidenceband}">>=
+<<out.width = "0.6\\textwidth", fig.width = 5, fig.height = 3, fig.cap = "Scatterplot with a parametric bootstrap-based 95\\% confidence band for the regression line.\\label{fig:bs_confidenceband}">>=
 # Step 4
 confidence_band_tbl <- tibble(new_aoa, lo_95, hi_95)
 
