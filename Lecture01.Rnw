@@ -518,7 +518,7 @@ we now draw a large number (here: 20,000) of independent simple random samples
 (i.e., with replacement) of size 20 from this population (Figure \ref{fig:samplesfromdistribution}, middle row),
 compute their means, and inspect the distribution of these sample means (bottom row).
 
-<<echo = FALSE, fig.cap = "The top row shows the distribution that we're (for the sake of the illustration) interested in. Imagine that we draw a large number of independent simple random samples with the same size (here: $n = 20$) from this distribution and compute their means. The middle row shows five such random samples, and their means are highlighted by the dashed vertical line. The bottom row shows the distribution of these sample means. In this example, the latter distribution seems to be more or less approximately distributed, but this isn't necessarily the case.\\label{fig:samplesfromdistribution}", cache = TRUE, fig.width = 1.2*9, fig.height = 1.2*5.5, out.width = "\\textwidth", message = FALSE, warning = FALSE>>=
+<<echo = FALSE, fig.cap = "The top row shows the distribution that we're (for the sake of the illustration) interested in. Imagine that we draw a large number of independent simple random samples with the same size (here: $n = 20$) from this distribution and compute their means. The middle row shows five such random samples, and their means are highlighted by the dashed vertical line. The bottom row shows the distribution of these sample means. In this example, the latter distribution seems to be more or less normally distributed, but this isn't necessarily the case.\\label{fig:samplesfromdistribution}", cache = TRUE, fig.width = 1.2*9, fig.height = 1.2*5.5, out.width = "\\textwidth", message = FALSE, warning = FALSE>>=
 p_population <- ggplot(data = d,
        aes(x = GJT, y = after_stat(density))) +
   geom_histogram(binwidth = 10, fill = "lightgrey", colour = "black") +
@@ -1183,7 +1183,7 @@ for (i in 1:n_bootstrap) {
 @
 
 A quick no-frills histogram of the $\widehat{\beta}_0^*$ values
-shows that these approximately form a normal distribution (Figure \ref{fig:histbootstrap}).
+shows that these approximately follow a normal distribution (Figure \ref{fig:histbootstrap}).
 <<fig.cap = "A quick histogram of the bootstrapped $\\widehat{\\beta}_0$ estimates.\\label{fig:histbootstrap}", fig.width = 5, fig.height = 3.5>>=
 hist(bs_b0)
 @
@@ -1279,11 +1279,11 @@ quantile(bs_b0, probs = c(0.025, 0.975))
 \subsection{The parametric bootstrap}
 In the previous section, we assumed that the distribution of the estimated
 residuals gives us a reasonable approximation of the distribution from
-which the residuals were drawn. Alternatively, we could make a different
-assumption about the residual distribution, for instance, that this
+which the errors were drawn. Alternatively, we could make a different
+assumption about the error distribution, for instance, that this
 distribution is normal. Note the difference between this assumption and the assumption
-we made earlier. Now we're assuming that the residuals are randomly and independently
-drawn from a normal distribution; earlier, we assumed that the residuals were randomly
+we made earlier. Now we're assuming that the errors are randomly and independently
+drawn from a normal distribution; earlier, we assumed that the errors were randomly
 and independently sampled from \emph{some} distribution, and it was the (estimated)
 sampling distribution of $\widehat{\beta}_0$ that \emph{happened} to be roughly
 normally distributed.
@@ -1307,7 +1307,7 @@ We can write down our assumptions like so:
 \end{align*}
 for $i = 1, 2, \dots, n$.
 The standard deviation of the error distribution can be estimated
-from the estimated residuals like so:
+from the residuals like so:
 \[
   \widehat{\sigma}_{\varepsilon} = \sqrt{\frac{1}{n - d} \sum_{i = 1}^n \widehat{\varepsilon}^2_i},
 \]
@@ -1355,7 +1355,7 @@ sd(bs_b0)
 quantile(bs_b0, c(0.025, 0.975))
 @
 
-While we assumed that the residual distribution was normal here,
+While we assumed that the error distribution was normal here,
 we could in principle also apply 
 the parametric bootstrap when making different assumptions
 about the residual distribution.
