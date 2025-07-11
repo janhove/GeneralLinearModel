@@ -150,6 +150,8 @@ In language research, however, we often deal with binary outcome data
 such as accuracy (correct/incorrect), presence vs.\ absence, etc.
 It is possible to analyse such binary data in a general linear model
 by coding one level of the variable as 1 and the other as 0.
+The predicted values can then be interpreted as the estimated
+success probabilities (e.g., correct answer, presence of phoneme, etc.).
 This is referred to as the {\bf linear probability model},
 and it may be an appropriate tool when analysing the data from experiments
 with categorical predictors \citep[see][]{Hellevik2009,Huang2019}.
@@ -515,7 +517,7 @@ that is also expressed in percentages, consider fitting a linear probability mod
   \end{align*}
   $i = 1, \dots, n$.
   Compared to the logistic model, the only difference is that the link
-  function is the identity (i.e., $\eta \mapsto \eta$) instead of the logit function.
+  function is the identity (i.e., $\eta_i = p_i$) instead of the logit function.
   In contrast to the general linear models considered earlier, 
   there aren't any error terms in this model!
   So instead of using \rcode{lm()}, which estimates error variance,
@@ -679,7 +681,7 @@ be a reasonable assumption for small datasets.
 
 Alternatively, we can use a technique similar to the parametric bootstrap:
 We generate new outcome data \emph{under the fitted null model}
-and the fit the full model. We then count in how many cases the 
+and then refit the full model. We then count in how many cases the 
 estimated interaction term in the models fitted on the null data
 was at least as extreme as the interaction term that we estimated for the actual
 data. This proportion serves as a $p$-value -- in our case, $p = 0.118$.
