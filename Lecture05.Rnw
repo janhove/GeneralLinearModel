@@ -336,7 +336,7 @@ interpretation of the parameter estimates
 of the first model: Just because parameters
 with the same name occur in both models 
 (\texttt{(Intercept)}, \texttt{x}) doesn't
-mean that these have the same same interpretation.
+mean that these have the same interpretation.
 (Recall the Greek letter fallacy!)
 Specifically, the parameter estimates in the
 second model can only be interpreted correctly
@@ -791,7 +791,7 @@ byclass.lm <- lm(mean_T3 ~ n.Group + mean_T1, hicks_byclass)
 \parend
 
 \section{Posttreatment variables}
-We now briefly turn our attention to scenarios where $z$ is a posttreatment variable.
+We now turn our attention to scenarios where $z$ is a posttreatment variable.
 That is, when we draw a \textsc{dag}, we can arrive at $z$ starting in $x$ by following
 arrows.
 In the context of a randomised experiment with $x$ as the predictor of interest,
@@ -1019,6 +1019,7 @@ Consider Figure \ref{fig:complexdag1}. Assume that you want to
   the total causal effect of $x$ on $y$ and that all relationships shown
   are linear and additive. Which variables would you include in a general
   linear model as predictors? Justify your answer.
+  \parend
   
 <<message = FALSE, fig.width=4, fig.height=2, out.width=".6\\textwidth", echo = FALSE, fig.cap="\\label{fig:complexdag1}">>=
 complexdag1 <- dagitty("dag {
@@ -1036,7 +1037,6 @@ coordinates(complexdag1) <- list(
 )
 drawdag(complexdag1)
 @
-\parend
 
 \mypar{Exercise}
 Same question for Figure \ref{fig:complexdag2}.\parend
