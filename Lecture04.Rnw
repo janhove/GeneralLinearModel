@@ -282,7 +282,7 @@ ggplot(d,
   facet_grid(cols = vars(CS))
 @
 
-\mypar[Try out several plots]{Recommendation}
+\mypar[Try out several plots]{Tip}
 For group comparisons, boxplots are often a good choice, but it's often
 possible to improve on them. Don't hesitate to try out alternative plots.
 
@@ -432,7 +432,7 @@ In fact, also do them if you're \emph{not} in doubt :)
 \parend
 
 \subsection{Uncertainty estimates}
-We can obtain estimated standard errors as well as confidence intervals
+We can obtain standard errors and confidence intervals
 just like before by using the \texttt{summary()} and \texttt{confint()}
 commands. Again, these computations are based on the assumption
 that the errors are i.i.d.\ normal, but you can always use bootstrapping
@@ -445,10 +445,10 @@ Because we used treatment coding here, the estimates for \texttt{Dragan}
 and \texttt{WithCS} aren't too relevant. The study's main result
 is that the presence of code-switches is some $0.93 \pm 0.28$ points more detrimental
 to ratings of `Dragan's' academic potential than it is to ratings of `Luca's' academic
-potential. Equivalently, the \emph{absence} of code-switches is some $0.93 \pm 0.28$ more
+potential.
+Equivalently, the \emph{absence} of code-switches is some $0.93 \pm 0.28$ more
 beneficial to ratings of `Dragan's' academic potential 
-than it is to ratings of `Luca's' academic potential. (Interaction effects can often
-be framed in several equivalent ways.)\label{par:finding_berthele}
+than it is to ratings of `Luca's' academic potential.\label{par:finding_berthele}
 
 \mypar{Exercise}
 The main finding in \citet{Berthele2011b} was the 
@@ -530,7 +530,7 @@ and I don't have any datasets that call for such an analysis.
 \section{About non-cross-over interactions}
 The mere fact that a statistical model suggests that two predictor variables
 interact in their effect on some outcome variable
-does \emph{not} imply that these predictor variable interact in their effect
+does \emph{not} imply that these predictor variables interact in their effect
 on the \emph{construct} that this outcome variable represents.
 This is particularly important to appreciate if the interaction in question
 is not a cross-over interaction, that is, if the relative order between two 
