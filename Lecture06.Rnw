@@ -151,7 +151,8 @@ such as accuracy (correct/incorrect), presence vs.\ absence, etc.
 It is possible to analyse such binary data in a general linear model
 by coding one level of the variable as 1 and the other as 0.
 The predicted values can then be interpreted as the estimated
-success probabilities (e.g., correct answer, presence of phoneme, etc.).
+success probabilities (e.g., probability of a correct answer, 
+of the presence of a given phoneme, etc.).
 This is referred to as the {\bf linear probability model},
 and it may be an appropriate tool when analysing the data from experiments
 with categorical predictors \citep[see][]{Hellevik2009,Huang2019}.
