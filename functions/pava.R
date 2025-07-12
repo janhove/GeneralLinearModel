@@ -1,4 +1,7 @@
-# jan.vanhove@students.unibe.ch - PAVA
+# Implementation of PAVA (pooled adjacent violators algorithm)
+# for isotonic regression.
+# jan.vanhove@students.unibe.ch based on pseudocode by Lutz Dümbgen
+
 pava <- function(x, y, plot = TRUE) {
   y <- y[order(x)]
   y_all <- y
